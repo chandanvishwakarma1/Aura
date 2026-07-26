@@ -18,7 +18,7 @@ const positionSchema = new mongoose.Schema({
         type: Number,
         requied: true
     },
-    boughtAt: {
+    avgPrice: {
         type: Number,
         requied: true
     }
