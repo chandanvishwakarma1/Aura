@@ -1,0 +1,22 @@
+# Environment variables
+.env
+**/.env
+
+# Expo
+.expo/
+**/.expo/
+
+# Node
+node_modules/
+**/node_modules/
+
+backend/node_modules/
+backend/.env
+
+trading-engine/node_modules/
+trading-engine/.env
+
+Aura/node_modules/
+Aura/.expo/
+Aura/.metro/
+Aura/dist/
