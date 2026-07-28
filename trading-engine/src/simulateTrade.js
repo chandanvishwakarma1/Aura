@@ -1,33 +1,35 @@
-    import Position from "./models/Position.js"
-    import Trade from "./models/Trade.js";
-    import { getCurrentPrice } from "./price.js";
+import Position from "./models/Position.js"
+import Trade from "./models/Trade.js";
+import  getCurrentPrice  from "./price.js";
 
-    const simulateTrade = async( follow, symbol, side, risk ) => {
-        const existingPosition = await Position.findOne({ followId: follow._id, symbol });
-        if(existingPosition && side == "BUY"){
-            console.log(`Ignoring buy signal - position already exists for ${symbol}`)
-            return;
+const simulateTrade = async (follow, symbol, side, risk, fillPrice) => {
+    let tradeExecuted = false;
+    const existingPosition = await Position.findOne({ followId: follow._id, symbol });
+    if (existingPosition && side == "BUY") {
+        console.log(`Ignoring buy signal - position already exists for ${symbol}`)
+        return tradeExecuted;
+    }
+    if (!existingPosition && side == "SELL") {
+        console.log(`Ignoring sell signal - no active postion for ${symbol}`)
+        return tradeExecuted;
+    }
+
+    const currentPrice = fillPrice || await getCurrentPrice(symbol);
+
+    console.log("=== SIMULATE TRADE INPUT DEBUG ===");
+    console.log("follow object:", JSON.stringify(follow, null, 2));
+    console.log("risk value:", risk);
+    console.log("currentPrice value:", currentPrice);
+    console.log("==================================");
+
+    if (side == "BUY") {
+        const quantity = Math.floor(follow.capitalAllocated * risk / currentPrice)
+        if (quantity < 1) {
+            console.log(`Allocation too small to buy 1 share of ${symbol} at ${currentPrice}`)
+            
+            return tradeExecuted;
         }
-        if(!existingPosition && side == "SELL"){
-            console.log(`Ignoring sell signal - no active postion for ${symbol}`)
-            return;
-        }
-
-        const currentPrice = await getCurrentPrice(symbol);
-
-        console.log("=== SIMULATE TRADE INPUT DEBUG ===");
-  console.log("follow object:", JSON.stringify(follow, null, 2));
-  console.log("risk value:", risk);
-  console.log("currentPrice value:", currentPrice);
-  console.log("==================================");
-
-        if(side == "BUY"){
-            const quantity = Math.floor(follow.capitalAllocated * risk / currentPrice)
-            if(quantity < 1){
-                console.log(`Allocation too small to buy 1 share of ${symbol} at ${currentPrice}`)
-                return;
-            }
-            await Trade.create({
+        await Trade.create({
             symbol,
             followId: follow._id,
             profileId: follow.profileId,
@@ -35,22 +37,26 @@
             status: "open",
             quantity,
             price: currentPrice,
-            })
+        })
 
-            await Position.create({
-                followId: follow._id,
-                symbol,
-                quantity,
-                currentPrice,
-                avgPrice: currentPrice
-            })
-        } else if(side == "SELL"){
-            // const position = await Position.findOne({ followId: follow._id, symbol})
-            const quantity = existingPosition.quantity;
-            const pnlAtClose =( currentPrice - existingPosition.avgPrice )*quantity;
-            await Trade.updateOne({followId: follow._id, symbol, status: "open"}, {$set: {status: "closed", pnlAtClose}})
-            await Position.deleteOne({followId: follow._id, symbol})
-        }
+        await Position.create({
+            followId: follow._id,
+            symbol,
+            quantity,
+            currentPrice,
+            avgPrice: currentPrice
+        })
+        tradeExecuted=true;
+    } else if (side == "SELL") {
+        // const position = await Position.findOne({ followId: follow._id, symbol})
+        const quantity = existingPosition.quantity;
+        const pnlAtClose = (currentPrice - existingPosition.avgPrice) * quantity;
+        await Trade.updateOne({ followId: follow._id, symbol, status: "open" }, { $set: { status: "closed", pnlAtClose } })
+        await Position.deleteOne({ followId: follow._id, symbol })
+        tradeExecuted = true;
     }
 
-    export default simulateTrade;
+    return tradeExecuted;
+}
+
+export default simulateTrade;

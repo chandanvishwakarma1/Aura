@@ -1,0 +1,27 @@
+import mongoose from "mongoose";
+
+const queuedIntentSchema = new mongoose.Schema({
+    symbol:{
+        type: String,
+        required: true
+    },
+    profileId:{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Profile',
+        required: true,
+    },
+    side: {
+        type: String,
+        enum: ['BUY', 'SELL'],
+        required: true
+    },
+    status: {
+        type: String,
+        enum:["pending", "executed"],
+        default: "pending"
+    },
+
+}, { timestamps:true})
+
+const QueuedIntent = mongoose.model('QueuedIntent', queuedIntentSchema)
+export default QueuedIntent;

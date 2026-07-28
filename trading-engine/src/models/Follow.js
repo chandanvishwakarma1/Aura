@@ -11,6 +11,13 @@ const followSchema = new mongoose.Schema({
         ref: 'Profile',
         required:true,
     },
+    risk: {
+        type: Number,
+        required: true,
+        default: 0.1,
+        min:0,
+        max:1
+    },
     followedAt: {
         type: Date,
         default: Date.now,
