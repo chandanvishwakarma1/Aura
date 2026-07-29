@@ -22,25 +22,34 @@ const tradeSchema = new mongoose.Schema({
     },
     quantity:{
         type: Number,
-        requied: true
+        required: true
     },
     price: {
         type: Number,
-        requied: true
+        required: true
     },
     status: {
         type: String,
-        enum: ["open", "closed"],
+        enum: ["open", "closed", "skipped"],
         required: true
+    },
+    rejectionReason:{
+        type:String,
+        enum: ["SLIPPAGE_EXCEEDED", "INSUFFICIENT_FUNDS", null],
+        default: null
+    },
+    exitPrice: {
+        type: Number,
+        default:null
     },
     pnlAtClose: {
         type: Number
     },
     triggerRefId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Disclosure'
+        ref: 'QueuedIntent'
     }
 },{timestamps: true})
-
+tradeSchema.index({followId:1,status:1})
 const Trade = mongoose.model('Trade', tradeSchema)
 export default Trade;

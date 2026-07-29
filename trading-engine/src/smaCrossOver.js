@@ -4,6 +4,8 @@ import Profile from './models/Profile.js'
 // import simulateTrade from './simulateTrade.js'
 import getHistoricalCloses from './getHistoricalCloses.js'
 import QueuedIntent from "./models/QueuedIntent.js";
+import Position from "./models/Position.js";
+import Follow from "./models/Follow.js";
 
 const average = (prices) => {
     let sum = 0;
@@ -42,13 +44,13 @@ const forced = () => {
 
     // Days 1-40: gentle decline
     for (let i = 0; i < 40; i++) {
-        price -= 1.2;
+        price += 1.2;
         forcedCrossoverCloses.push(parseFloat(price.toFixed(2)));
     }
 
     // Days 41-55: sharp rally — this is what drags the 20-day average up fast
     for (let i = 0; i < 11; i++) {
-        price += 8;
+        price -= 8;
         forcedCrossoverCloses.push(parseFloat(price.toFixed(2)));
     }
 
@@ -61,9 +63,13 @@ const smaEngine = async () => {
         const profiles = await Profile.find({ type: "sma_crossover" })
         if (profiles.length === 0) {
             console.log("No crossover profile found in DB.")
+            return;
         }
 
         for (const profile of profiles) {
+            const follows = await Follow.find({profileId: profile._id})
+            const followerIds = follows.map(f=>f._id)
+
             for (const instrumentScope of profile.instrumentScope) {
                 const symbol = instrumentScope
                 const closes = await getHistoricalCloses(symbol)
@@ -80,11 +86,19 @@ const smaEngine = async () => {
                     continue;
                 };
 
+                if(side === "SELL"){
+                        const existingPosition = await Position.findOne({followId: {$in: followerIds}, symbol})
+                        if(!existingPosition){
+                            console.log(`Dropping SELL signal for ${symbol} - no active positions`)
+                            continue;
+                        }
+                }
                 await QueuedIntent.create({
                     symbol,
                     side,
                     status: "pending",
-                    profileId: profile._id
+                    profileId: profile._id,
+                    decisionPrice: closes[closes.length-1]
                 })
                 console.log(`Queued ${side} intent for ${symbol} for tommorrow`)
 

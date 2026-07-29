@@ -18,6 +18,10 @@ const followSchema = new mongoose.Schema({
         min:0,
         max:1
     },
+    slippage:{
+        type: Number,
+        default: 0.01,
+    },
     followedAt: {
         type: Date,
         default: Date.now,

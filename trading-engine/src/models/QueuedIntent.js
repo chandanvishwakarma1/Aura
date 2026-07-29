@@ -10,6 +10,10 @@ const queuedIntentSchema = new mongoose.Schema({
         ref: 'Profile',
         required: true,
     },
+    decisionPrice:{
+        type: Number,
+        required: true
+    },
     side: {
         type: String,
         enum: ['BUY', 'SELL'],

@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import YahooFinance from 'yahoo-finance2'
 
-const getHistoricalCloses = async (symbol, days = 80) => {
+export const getHistoricalClosePrices = async(symbol, days=80) => {
     const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey']});
     const Symbol = symbol + '.NS'
     const now = new Date();
@@ -22,6 +22,19 @@ const getHistoricalCloses = async (symbol, days = 80) => {
                 closes.push(d.close)
             }
         }
+        // console.log(closes)
+        return closes
+    } catch (error) {
+        console.log("Failed to fetch historical data:", error)
+        return []
+    }
+    
+}
+const getHistoricalCloses = async (symbol, days = 80) => {
+    const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey']});
+    const Symbol = symbol + '.NS'
+    try {
+        const closes = await getHistoricalClosePrices(symbol)
         const liveSnapshot = await yahooFinance.quote(Symbol);
         if (liveSnapshot.regularMarketPrice !== null) {
             closes.push(liveSnapshot.regularMarketPrice)
@@ -33,4 +46,5 @@ const getHistoricalCloses = async (symbol, days = 80) => {
         return []
     }
 }
+// getHistoricalClosePrices('RELIANCE')
 export default getHistoricalCloses;
