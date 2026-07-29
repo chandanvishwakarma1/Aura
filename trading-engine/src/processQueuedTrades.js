@@ -22,6 +22,10 @@ const processQueuedTrades = async () => {
             const currentPrice = await getCurrentPrice(symbol);
             // const currentPrice = 341;
             const follows = await Follow.find({ profileId });
+            if(follows.length === 0){
+                console.log(`No followers for ${profileId} - Skipping order`)
+                continue;
+            }
 
 
             for (const follow of follows) {

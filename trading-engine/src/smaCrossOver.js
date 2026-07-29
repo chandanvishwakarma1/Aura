@@ -69,6 +69,10 @@ const smaEngine = async () => {
         for (const profile of profiles) {
             const follows = await Follow.find({profileId: profile._id})
             const followerIds = follows.map(f=>f._id)
+        if(followerIds.length === 0){
+            console.log(`No followers for ${profile._id} - skip`)
+            continue
+        }
 
             for (const instrumentScope of profile.instrumentScope) {
                 const symbol = instrumentScope
