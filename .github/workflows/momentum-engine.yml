@@ -1,0 +1,20 @@
+name: Momentum Chaser (Breakout) Engine
+on:
+  schedule:
+    - cron: '45 9 * * 1-5'   # ~3:15 PM IST, Mon-Fri — same as SMA, same reasoning
+  workflow_dispatch: {}
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: trading-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run startMomentum
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}

@@ -1,0 +1,20 @@
+name: Process Queued Trades
+on:
+  schedule:
+    - cron: '46 3 * * 2-6'   # ~9:16 AM IST, Tue-Sat in UTC terms (next-day execution)
+  workflow_dispatch: {}
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: trading-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run startQueue
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
