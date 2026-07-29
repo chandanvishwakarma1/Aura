@@ -1,7 +1,7 @@
 import { connectDB, closeDB } from "./db.js";
 import Profile from './models/Profile.js'
-import Follow from './models/Follow.js'
-import simulateTrade from './simulateTrade.js'
+// import Follow from './models/Follow.js'
+// import simulateTrade from './simulateTrade.js'
 import getHistoricalCloses from './getHistoricalCloses.js'
 import QueuedIntent from "./models/QueuedIntent.js";
 
@@ -22,10 +22,10 @@ const evaluateSmaCrossOver = (closes, shortWindow, longWindow) => {
     const yesterdayShort = average(closes.slice(-shortWindow - 1, -1));
     const yesterdayLong = average(closes.slice(-longWindow - 1, -1));
 
-    console.log(todayShort)
-    console.log(todayLong)
-    console.log(yesterdayShort)
-    console.log(yesterdayLong)
+    // console.log(todayShort)
+    // console.log(todayLong)
+    // console.log(yesterdayShort)
+    // console.log(yesterdayLong)
 
     if (yesterdayShort <= yesterdayLong && todayShort > todayLong) {
         return "BUY";
@@ -68,6 +68,10 @@ const smaEngine = async () => {
                 const symbol = instrumentScope
                 const closes = await getHistoricalCloses(symbol)
                 // const closes = await forced();
+                if (!closes || closes.length === 0) {
+                    console.log(`No closing prices for ${symbol}, skipping`);
+                    continue;
+                }
                 console.log(`${symbol}: got ${closes.length} closing prices`);
 
                 const side = evaluateSmaCrossOver(closes, profile.params.shortWindow, profile.params.longWindow)

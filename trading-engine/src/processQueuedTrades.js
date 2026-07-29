@@ -12,6 +12,7 @@ const processQueuedTrades = async () => {
         const queuedIntent = await QueuedIntent.find({ status: "pending" })
         if (queuedIntent.length === 0) {
             console.log("No intent queue today")
+            await closeDB()
             return;
         }
 
