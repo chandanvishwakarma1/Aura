@@ -7,11 +7,15 @@ import { closeDB } from "./db.js"
 import QueuedIntent from "./models/QueuedIntent.js"
 import marketStatus from "./marketStatus.js"
 import processIntent from "./processIntent.js"
+import fetchFreeInsiderData from "./fetchAndSaveDisclosures.js"
 
 
 const insiderEngine = async () => {
     try {
         await connectDB()
+
+        console.log(`Fetching latest disclosures from NSE ... `)
+        await fetchFreeInsiderData()
         const profiles = await Profile.find({ type: "insider_mirror" })
         if (profiles.length === 0) {
             console.log("No insider mirror profile found in DB.")

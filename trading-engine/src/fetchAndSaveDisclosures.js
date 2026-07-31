@@ -1,4 +1,3 @@
-import { connectDB, closeDB } from "./db.js";
 import Disclosure from "./models/Disclosure.js";
 import parseXml from "./xmlParser.js";
 
@@ -52,7 +51,7 @@ const mapToDisclosure = (xmlText) => {
         const entityName = data.NameOfThePerson
         const transactionType = data.SecuritiesAcquiredOrDisposedTransactionType
         const quantity = Number(data.SecuritiesAcquiredOrDisposedNumberOfSecurity || 0)
-        const price = Number(data.SecuritiesAcquiredOrDisposedValueOfSecurity || 0)
+        const price = quantity > 0 ? Number(data.SecuritiesAcquiredOrDisposedValueOfSecurity || 0) / quantity : 0
         const disclosedDate = data.DateOfIntimationToCompany
         const transactionDate = data.DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate || data.DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate
         const source = "nse_insider"
@@ -88,7 +87,6 @@ const mapToDisclosure = (xmlText) => {
 }
 const fetchFreeInsiderData = async () => {
     try {
-        await connectDB()
         const baseUrl = 'https://nseindia.com';
         const fromDate = genNseDateString(1)
         const toDate = genNseDateString(0)
@@ -270,9 +268,7 @@ const fetchFreeInsiderData = async () => {
 
     } catch (error) {
         console.error("\n💥 Process Interrupted:", error.message);
-    } finally {
-        await closeDB()
     }
 };
 
-fetchFreeInsiderData();
+export default fetchFreeInsiderData
