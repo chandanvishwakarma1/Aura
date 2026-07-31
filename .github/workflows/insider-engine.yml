@@ -1,7 +1,9 @@
-name: Process Queued Trades
+# .github/workflows/insider-engine.yml
+name: Insider Disclosure Engine
 on:
   schedule:
-    - cron: '46 3 * * 1-5'   # ~9:16 AM IST, Tue-Sat in UTC terms (next-day execution)
+    - cron: '30 17 * * *'   # 11:00 PM IST = 17:30 UTC, every day (NSE publishes disclosures daily, not just weekdays)
+    - cron: '*/10 3-10 * * 1-5'
   workflow_dispatch: {}
 jobs:
   run:
@@ -13,8 +15,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22.19.0
+          node-version: 22
       - run: npm install
-      - run: npm run startQueue
+      - run: npm run startInsider
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}
