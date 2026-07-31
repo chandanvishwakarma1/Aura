@@ -30,11 +30,11 @@ const evaluateSmaCrossOver = (closes, shortWindow, longWindow) => {
     // console.log(yesterdayLong)
 
     if (yesterdayShort <= yesterdayLong && todayShort > todayLong) {
-        return "BUY";
+        return "Buy";
     } else if (yesterdayShort >= yesterdayLong && todayShort < todayLong) {
-        return "SELL";
+        return "Sell";
     } else {
-        return "HOLD";
+        return "Hold";
     }
 }
 const forced = () => {
@@ -90,7 +90,7 @@ const smaEngine = async () => {
                     continue;
                 };
 
-                if(side === "SELL"){
+                if(side === "Sell"){
                         const existingPosition = await Position.findOne({followId: {$in: followerIds}, symbol})
                         if(!existingPosition){
                             console.log(`Dropping SELL signal for ${symbol} - no active positions`)
@@ -102,7 +102,8 @@ const smaEngine = async () => {
                     side,
                     status: "pending",
                     profileId: profile._id,
-                    decisionPrice: closes[closes.length-1]
+                    decisionPrice: closes[closes.length-1],
+                    orderType: 'Market'
                 })
                 console.log(`Queued ${side} intent for ${symbol} for tommorrow`)
 

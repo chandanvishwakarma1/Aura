@@ -2,14 +2,14 @@
     import Trade from "./models/Trade.js";
     import  getCurrentPrice  from "./price.js";
 
-    const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId) => {
+    const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, quantity) => {
         let tradeExecuted = false;
         const existingPosition = await Position.findOne({ followId: follow._id, symbol });
-        if (existingPosition && side == "BUY") {
+        if (existingPosition && side == "Buy") {
             console.log(`Ignoring buy signal - position already exists for ${symbol}`)
             return tradeExecuted;
         }
-        if (!existingPosition && side == "SELL") {
+        if (!existingPosition && side == "Sell") {
             console.log(`Ignoring sell signal - no active postion for ${symbol}`)
             return tradeExecuted;
         }
@@ -22,8 +22,7 @@
         console.log("currentPrice value:", currentPrice);
         console.log("==================================");
 
-        if (side == "BUY") {
-            const quantity = Math.floor(follow.capitalAllocated * risk / currentPrice)
+        if (side == "Buy") {
             if (quantity < 1) {
                 console.log(`Allocation too small to buy 1 share of ${symbol} at ${currentPrice}`)
                 
@@ -33,7 +32,7 @@
                 symbol,
                 followId: follow._id,
                 profileId: follow.profileId,
-                side: "BUY",
+                side: "Buy",
                 status: "open",
                 quantity,
                 price: currentPrice,
@@ -48,9 +47,8 @@
                 avgPrice: currentPrice
             })
             tradeExecuted=true;
-        } else if (side == "SELL") {
+        } else if (side == "Sell") {
             // const position = await Position.findOne({ followId: follow._id, symbol})
-            const quantity = existingPosition.quantity;
             const pnlAtClose = (currentPrice - existingPosition.avgPrice) * quantity;
             await Trade.updateOne({ followId: follow._id, symbol, status: "open" }, { $set: { status: "closed", pnlAtClose, exitPrice: currentPrice } })
 

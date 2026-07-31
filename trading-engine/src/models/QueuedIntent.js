@@ -16,8 +16,13 @@ const queuedIntentSchema = new mongoose.Schema({
     },
     side: {
         type: String,
-        enum: ['BUY', 'SELL'],
+        enum: ['Buy', 'Sell'],
         required: true
+    },
+    orderType:{
+        type: String,
+        enum: ['Market', 'Limit', 'AMO'],
+        default: 'Market',required:true
     },
     status: {
         type: String,

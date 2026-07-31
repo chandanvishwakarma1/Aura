@@ -22,11 +22,11 @@ const evaluateBreakOut = (closes, currentPrice, lookback) => {
     const historicalMax = Math.max(...closes.slice(-lookback))
     const historicalMin = Math.min(...closes.slice(-lookback))
     if (currentPrice > historicalMax) {
-        return "BUY"
+        return "Buy"
     } else if (currentPrice < historicalMin) {
-        return  "SELL"
+        return  "Sell"
     } else {
-        return "HOLD" 
+        return "Hold" 
     }
 }
 
@@ -60,7 +60,7 @@ const momentumEngine = async () => {
                     console.log(`No action for ${symbol} - ${side}`)
                     continue;
                 }
-                if (side === "SELL") {
+                if (side === "Sell") {
                         const existingPosition = await Position.findOne({ followId: {$in: followerIds}, symbol })
                         if (!existingPosition) {
                             console.log(`Dropping SELL signal for ${symbol} - no active positions`)

@@ -17,7 +17,7 @@ const tradeSchema = new mongoose.Schema({
     },
     side: {
         type: String,
-        enum: ['BUY', 'SELL'],
+        enum: ['Buy', 'Sell'],
         required: true,
     },
     quantity:{
@@ -35,7 +35,7 @@ const tradeSchema = new mongoose.Schema({
     },
     rejectionReason:{
         type:String,
-        enum: ["SLIPPAGE_EXCEEDED", "INSUFFICIENT_FUNDS", null],
+        enum: ["SLIPPAGE_EXCEEDED", "INSUFFICIENT_FUNDS", "MARKET_CLOSED_REJECTION"],
         default: null
     },
     exitPrice: {

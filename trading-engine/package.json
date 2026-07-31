@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "startSma": "node src/smaCrossOver.js",
     "startQueue": "node src/processQueuedTrades.js",
-    "startMomentum": "node src/breakOut.js"
+    "startMomentum": "node src/breakOut.js",
+    "startInsider": "node src/insider.js"
   },
   "keywords": [],
   "author": "",
@@ -15,6 +16,8 @@
   "type": "module",
   "dependencies": {
     "dotenv": "^17.4.2",
+    "fast-xml-parser": "^5.10.1",
+    "moment-timezone": "^0.6.3",
     "mongodb": "^7.5.0",
     "mongoose": "^9.8.0",
     "yahoo-finance2": "^4.0.0"
