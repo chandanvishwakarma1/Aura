@@ -1,9 +1,11 @@
-# .github/workflows/insider-engine.yml
-name: Insider Disclosure Engine
+# .github/workflows/whale-engine.yml
+name: Whale Bulk/Block Deal Engine
 on:
   schedule:
-    - cron: '30 17 * * *'   # 11:00 PM IST = 17:30 UTC, every day (NSE publishes disclosures daily, not just weekdays)
-    - cron: '*/10 3-10 * * 1-5' # every 10 min, 9AM-3:30PM IST, Mon-Fri — catches same-day disclosures
+    - cron: '0 18 * * *'   # ~11:30 PM IST = 18:00 UTC, after NSE's end-of-day bulk/block deal batch is published
+    - cron: '6 9 * * 1-5' # 
+    - cron: '26 14 * * 1-5'
+    - cron: '*/15 18-20 * * 1-5'
   workflow_dispatch: {}
 jobs:
   run:
@@ -17,6 +19,6 @@ jobs:
         with:
           node-version: 22
       - run: npm install
-      - run: npm run startInsider
+      - run: npm run startWhale
         env:
           MONGODB_URI: ${{ secrets.MONGODB_URI }}

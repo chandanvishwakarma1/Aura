@@ -1,7 +1,7 @@
 name: Process Queued Trades
 on:
   schedule:
-    - cron: '46 3 * * 1-5'   # ~9:16 AM IST, Tue-Sat in UTC terms (next-day execution)
+    - cron: '46 3 * * 1-5'   # ~9:16 AM IST, Mon-Fri in UTC terms (next-day execution)
   workflow_dispatch: {}
 jobs:
   run:
