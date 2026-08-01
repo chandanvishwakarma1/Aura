@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 const disclosureSchema = new mongoose.Schema({
     contextRef: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     companyName:{
         type: String,
@@ -32,16 +33,37 @@ const disclosureSchema = new mongoose.Schema({
         enum: ["Buy", "Sell"],
         required:true
     },
+    marketCap: {
+        type: String,
+    },
     quantity: { type: Number, required: true },
     price: { type: Number, required: true },
     mode: {
         type: String,
         enum: ["Market Sale", "Open Market", "Market Purchase"],
+    },
+    disclosedDate: { type: String, required: true },
+    filedDate:{ type:String, required :true},
+    transactionDate: {type: String, required:true},
+    categoryOfPerson: {
+        type: String,
+
+    },
+    totalTradeValue: {
+        type: Number,
         required: true
     },
-    disclosedDate: { type: Date, required: true },
-    filedDate:{ type:Date, required :true},
-    transactionDate: {type: Date, required:true},
+    profileDisplayTag: {
+        type: String,
+    },
+    systemCopyWeight: {
+        type: Number,
+    },
+    profileTarget: {
+        type: String,
+        enum: ["INSIDER", "WHALE"],
+        required:true
+    },
     processed: { type: Boolean, default: false },
     isCorporateEntity:{type : Boolean, default:false},
     rawPayload: {
@@ -57,6 +79,9 @@ disclosureSchema.index({
     contextRef: 1, 
     exchange: 1 
 }, { unique: true });
+disclosureSchema.index({ processed: 1, profileTarget: 1 });
+disclosureSchema.index({ symbol: 1, transactionDate: -1 });
+disclosureSchema.index({companyName: "text", entityName: "text"})
 
 const Disclosure = mongoose.model("Disclosure", disclosureSchema)
 export default Disclosure

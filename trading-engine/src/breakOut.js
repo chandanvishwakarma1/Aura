@@ -1,10 +1,10 @@
 import { closeDB, connectDB } from "./db.js";
-import { getHistoricalClosePrices } from "./getHistoricalCloses.js";
+import { getHistoricalClosePrices } from "./utils/getHistoricalCloses.js";
 import Follow from "./models/Follow.js";
 import Profile from "./models/Profile.js";
 import Position from "./models/Position.js";
 import QueuedIntent from "./models/QueuedIntent.js";
-import getCurrentPrice from "./price.js";
+import getCurrentPrice from "./utils/price.js";
 
 // const closes = [
 //     720, 725, 718, 730, 728,
@@ -24,9 +24,9 @@ const evaluateBreakOut = (closes, currentPrice, lookback) => {
     if (currentPrice > historicalMax) {
         return "Buy"
     } else if (currentPrice < historicalMin) {
-        return  "Sell"
+        return "Sell"
     } else {
-        return "Hold" 
+        return "Hold"
     }
 }
 
@@ -42,8 +42,8 @@ const momentumEngine = async () => {
         }
 
         for (const profile of profiles) {
-            const follows = await Follow.find({profileId: profile._id})
-            const followerIds = follows.map(f=>f._id)
+            const follows = await Follow.find({ profileId: profile._id })
+            const followerIds = follows.map(f => f._id)
 
             for (const instrumentScope of profile.instrumentScope) {
                 const symbol = instrumentScope
@@ -61,13 +61,13 @@ const momentumEngine = async () => {
                     continue;
                 }
                 if (side === "Sell") {
-                        const existingPosition = await Position.findOne({ followId: {$in: followerIds}, symbol })
-                        if (!existingPosition) {
-                            console.log(`Dropping SELL signal for ${symbol} - no active positions`)
-                            continue;
-                        }
+                    const existingPosition = await Position.findOne({ followId: { $in: followerIds }, symbol })
+                    if (!existingPosition) {
+                        console.log(`Dropping SELL signal for ${symbol} - no active positions`)
+                        continue;
                     }
-                
+                }
+
                 await QueuedIntent.create({
                     symbol,
                     side,

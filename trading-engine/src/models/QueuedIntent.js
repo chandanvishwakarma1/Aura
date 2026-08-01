@@ -10,6 +10,12 @@ const queuedIntentSchema = new mongoose.Schema({
         ref: 'Profile',
         required: true,
     },
+    profileDisplayTag:{
+        type: String
+    },
+    systemCopyWeight: {
+        type: Number
+    },
     decisionPrice:{
         type: Number,
         required: true

@@ -1,4 +1,5 @@
-import Disclosure from "./models/Disclosure.js";
+import Disclosure from "../models/Disclosure.js";
+import getMarketCapTier from "./marketCap.js";
 import parseXml from "./xmlParser.js";
 
 const genNseDateString = (daysOffset = 0) => {
@@ -10,27 +11,49 @@ const genNseDateString = (daysOffset = 0) => {
     return `${day}-${month}-${year}`
 
 }
+const formatNseDateToIso = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return dateStr;
+    const cleaned = dateStr.trim()
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(cleaned)) return cleaned
+    const months = {
+        jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06',
+        jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12'
+    };
+
+    // Split "31-Jul-2026"
+    const parts = cleaned.split('-');
+    if (parts.length !== 3) return dateStr; // Fallback if format changes
+
+    const day = parts[0].padStart(2, '0');
+    const month = months[parts[1].toLowerCase()];
+    let year = parts[2];
+
+    if (year.length === 2) year = `20${year}`
+
+    if (!month) return dateStr;
+    return `${year}-${month}-${day}`; // "2026-07-31"
+};
 const mapToDisclosure = (xmlText) => {
     const disclosedData = parseXml(xmlText)
     const discloses = []
     const companyInfo = disclosedData.MainI || {}
     const symbol = companyInfo.Symbol
-    const filedDate = companyInfo.DateOfFiling
+    const filedDate = formatNseDateToIso(companyInfo.DateOfFiling)
     const companyName = companyInfo.NameOfTheCompany
 
 
 
     for (const key in disclosedData) {
-        const contextRef = key
         const data = disclosedData[key]
-        if (!data||!data.SecuritiesAcquiredOrDisposedTransactionType) {
+        if (!data || !data.SecuritiesAcquiredOrDisposedTransactionType) {
             console.log(`Skipping - ${key} key is not valid`)
             continue
         }
 
         const mode = (data.ModeOfAcquisitionOrDisposal || "").trim()
         const acitveModes = ["Market Sale", "Open Market", "Market Purchase"]
-        if(!acitveModes.includes(mode)) {
+        if (!acitveModes.includes(mode)) {
             console.log(`Skipping - ${mode} mode is not valid`)
             continue
         };
@@ -41,8 +64,8 @@ const mapToDisclosure = (xmlText) => {
 
         const isValidExchange = exchange === 'NSE' || exchange === 'BSE'
         const isValidInstrument = instrument === 'Equity' || instrument === 'Equity Shares'
-        
-        if (!isValidExchange || !isValidInstrument ) {
+
+        if (!isValidExchange || !isValidInstrument) {
             console.log(`Skipping - ${exchange} exchange or ${instrument} intrument is not valid`)
             continue
         }
@@ -52,10 +75,14 @@ const mapToDisclosure = (xmlText) => {
         const transactionType = data.SecuritiesAcquiredOrDisposedTransactionType
         const quantity = Number(data.SecuritiesAcquiredOrDisposedNumberOfSecurity || 0)
         const price = quantity > 0 ? Number(data.SecuritiesAcquiredOrDisposedValueOfSecurity || 0) / quantity : 0
-        const disclosedDate = data.DateOfIntimationToCompany
-        const transactionDate = data.DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate || data.DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate
+        const disclosedDate = formatNseDateToIso(data.DateOfIntimationToCompany)
+        const categoryOfPerson = data.CategoryOfPerson
+        const transactionDate = formatNseDateToIso(data.DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyToDate) || formatNseDateToIso(data.DateOfAllotmentAdviceOrAcquisitionOfSharesOrSaleOfSharesSpecifyFromDate)
         const source = "nse_insider"
         const rawPayload = xmlText
+
+        const totalTradeValue = (quantity > 0 && price > 0) ? quantity * price : 0;
+        const contextRef = `${key}_${symbol}_${entityName}_${price}_${quantity}_${data.disclosedDate}`
 
 
         const singleDisclosure = {
@@ -68,6 +95,9 @@ const mapToDisclosure = (xmlText) => {
             transactionType,
             transactionDate,
             disclosedDate,
+            categoryOfPerson,
+            totalTradeValue,
+            profileTarget: "INSIDER",
             filedDate,
             quantity,
             mode,
@@ -76,7 +106,7 @@ const mapToDisclosure = (xmlText) => {
         }
         discloses.push(singleDisclosure)
 
-        
+
     }
 
     // console.log(disclos)
@@ -85,6 +115,8 @@ const mapToDisclosure = (xmlText) => {
     // console.log(disclosedData.Disclosure1.NameOfThePerson)
     return discloses
 }
+
+
 const fetchFreeInsiderData = async () => {
     try {
         const baseUrl = 'https://nseindia.com';
@@ -196,7 +228,7 @@ const fetchFreeInsiderData = async () => {
                 for (const disclosure of disclosedData) {
                     if (!disclosure) continue;
                     const { rawPayload, ...rest } = disclosure
-                    // console.log(rest)
+                    // console.log(rest.totalTradeValue)
 
                     const existing = await Disclosure.findOne({
                         source: disclosure.source,
@@ -212,21 +244,49 @@ const fetchFreeInsiderData = async () => {
                         continue
                     }
 
-                    const name = (disclosure.entityName || "").toUpperCase()
-                    const isCorporateEntity = name.includes('LIMITED') || name.includes('PVT') || name.includes('LTD') || name.includes('INVESTMENTS') || name.includes('CORP') || name.includes('HOLDINGS') || name.includes('TRUST')
+                    const profileTarget = (disclosure.source === "nse_insider") ? "INSIDER" : "WHALE"
+                    let profileDisplayTag = '';
+                    let systemCopyWeight = 1.0;
 
+                    if (profileTarget === 'INSIDER') {
+                        if (disclosure.totalTradeValue > 10000000) {
+                            profileDisplayTag = 'SUPER INSIDER'
+                            systemCopyWeight = 2.0
+                        } else {
+                            profileDisplayTag = 'INSIDER'
+                            systemCopyWeight = 1
+                        }
+                    }
+
+                    if (profileTarget === 'WHALE') {
+                        continue
+                    }
+                    const tier = await getMarketCapTier(disclosure.symbol)
+
+                    const name = (disclosure.entityName || "").toUpperCase().trim()
+                    const corporateKeywords = [
+                        "LIMITED", "LTD", "PRIVATE", "PVT", "LLP", "PARTNERS", "FUND", "TRUST", "CAPITAL", "SECURITIES", "FINANCE", "BANK", "INSURANCE", "INVESTMENTS", "CORP", "HOLDINGS", "ASSET MANAGEMENT", "AMC", "AIF", "VCC", "PTE", "CORPORATION"
+                    ]
+                    const corpRegex = new RegExp(`\\b(${corporateKeywords.join('|')})\\b`, 'i')
+                    const isCorporateEntity = corpRegex.test(name)
                     if (isCorporateEntity) {
                         console.log(`Storing ${disclosure.entityName} as corporate entity - skipping active trade replication`)
                         await Disclosure.create({
                             source: disclosure.source,
                             contextRef: disclosure.contextRef,
                             symbol: disclosure.symbol,
+                            profileTarget: "INSIDER",
+                            categoryOfPerson: disclosure.categoryOfPerson,
                             companyName: disclosure.companyName,
                             entityName: disclosure.entityName,
                             mode: disclosure.mode,
                             transactionType: disclosure.transactionType,
+                            profileDisplayTag,
+                            marketCap: tier,
+                            systemCopyWeight,
                             transactionDate: disclosure.transactionDate,
                             filedDate: disclosure.filedDate,
+                            totalTradeValue: disclosure.totalTradeValue,
                             disclosedDate: disclosure.disclosedDate,
                             price: disclosure.price,
                             processed: true,
@@ -242,9 +302,15 @@ const fetchFreeInsiderData = async () => {
                         source: disclosure.source,
                         contextRef: disclosure.contextRef,
                         symbol: disclosure.symbol,
+                        profileTarget: "INSIDER",
+                        categoryOfPerson: disclosure.categoryOfPerson,
                         companyName: disclosure.companyName,
                         entityName: disclosure.entityName,
                         mode: disclosure.mode,
+                        marketCap: tier,
+                        profileDisplayTag,
+                        systemCopyWeight,
+                        totalTradeValue: disclosure.totalTradeValue,
                         transactionType: disclosure.transactionType,
                         transactionDate: disclosure.transactionDate,
                         filedDate: disclosure.filedDate,

@@ -7,24 +7,24 @@ import { closeDB } from "./utils/db.js"
 import QueuedIntent from "./models/QueuedIntent.js"
 import marketStatus from "./utils/marketStatus.js"
 import processIntent from "./processIntent.js"
-import fetchFreeInsiderData from "./utils/fetchAndSaveDisclosures.js"
+import fetchWhaleDealsData from "./utils/fetchAndSaveDeals.js"
 
 
-const insiderEngine = async () => {
+const whaleEngine = async () => {
     try {
         await connectDB()
 
-        console.log(`Fetching latest disclosures from NSE ... `)
-        await fetchFreeInsiderData()
-        const profiles = await Profile.find({ type: "insider_mirror" })
+        console.log(`Fetching latest bulk/block deals from NSE ... `)
+        await fetchWhaleDealsData()
+        const profiles = await Profile.find({ type: "bulk_mirror" })
         if (profiles.length === 0) {
-            console.log("No insider mirror profile found in DB.")
+            console.log("No bulk/block mirror profile found in DB.")
             return;
         }
-        const unprocessedDisclosure = await Disclosure.find({ processed: false, isCorporateEntity: false })
+        const unprocessedDisclosure = await Disclosure.find({ processed: false, profileTarget: 'WHALE' })
 
         if (unprocessedDisclosure.length === 0) {
-            console.log(`No disclosure processing pending - terminating pipeline`)
+            console.log(`No deals processing pending - terminating pipeline`)
             return
         }
         const isMarketOpen = marketStatus()
@@ -32,6 +32,7 @@ const insiderEngine = async () => {
         console.log(isMarketOpen)
         const orderType = isMarketOpen ? 'Market' : 'AMO'
         const finishedIds = []
+        console.log(`Found ${unprocessedDisclosure.length} unprocessed WHALE disclosures to evaluate`)
         for (const profile of profiles) {
             const follows = await Follow.find({ profileId: profile._id })
             const followerIds = follows.map(f => f._id)
@@ -41,28 +42,17 @@ const insiderEngine = async () => {
             }
 
             for (const disclosure of unprocessedDisclosure) {
-                const value = disclosure.totalTradeValue
-                // if (value > 100000000) {
-                //     console.log(`Value ₹${value.toLocaleString('en-IN')} ${disclosure.symbol} is greater than 10 crores handing over to Whale.`)
-                //     continue;
-                // }
                 const symbol = disclosure.symbol
                 const side = disclosure.transactionType
-                if (side === 'Sell') {
-                    const existingPosition = await Position.countDocuments({ followId: { $in: followerIds }, symbol })
-                    if (existingPosition === 0) {
-                        console.log(`Dropping Sell signal for ${symbol} - no active positions across any of this profiles user`)
-                        continue
-                    }
-                }
+
                 const intent = await QueuedIntent.create({
                     symbol,
                     side,
-                    profileDisplayTag: disclosure.profileDisplayTag,
-                    systemCopyWeight: disclosure.systemCopyWeight,
                     status: "pending",
                     profileId: profile._id,
                     decisionPrice: disclosure.price,
+                    profileDisplayTag: disclosure.profileDisplayTag,
+                    systemCopyWeight: disclosure.systemCopyWeight,
                     orderType
                 })
                 if (isMarketOpen) {
@@ -80,9 +70,9 @@ const insiderEngine = async () => {
             console.log(`Succesfully completed batch run execution updates for ${uniqueIds.length} disclosures`)
         }
     } catch (error) {
-        console.log('Error in insiderEngine: ', error)
+        console.log('Error in whaleEngine: ', error)
     } finally {
         await closeDB()
     }
 }
-insiderEngine()
+whaleEngine()
