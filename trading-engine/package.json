@@ -8,7 +8,8 @@
     "startSma": "node src/smaCrossOver.js",
     "startQueue": "node src/processQueuedTrades.js",
     "startMomentum": "node src/breakOut.js",
-    "startInsider": "node src/insider.js"
+    "startInsider": "node src/insider.js",
+    "startWhale": "node src/whale.js"
   },
   "keywords": [],
   "author": "",
