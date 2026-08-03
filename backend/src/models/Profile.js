@@ -2,9 +2,17 @@ import mongoose from 'mongoose';
 
 const profileSchema = new mongoose.Schema({
   name: {
-    type:String,
+    type: String,
     required: true,
-    unique:true
+    unique: true
+  },
+  shortIntro: {
+    type: String,
+    required: true
+  },
+  profileImage: {
+    type: String,
+    required: true
   },
   description: {
     type: String,
@@ -20,14 +28,14 @@ const profileSchema = new mongoose.Schema({
     default: {}
   },
   instrumentScope: {
-    type: mongoose.Schema.Types.Mixed, 
-    required:true
+    type: mongoose.Schema.Types.Mixed,
+    required: true
   },
-  active:{
+  active: {
     type: Boolean,
     default: true
   }
-},{timestamps:true})
+}, { timestamps: true })
 
 const Profile = mongoose.model('Profile', profileSchema);
 export default Profile;
