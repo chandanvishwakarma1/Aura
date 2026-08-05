@@ -1,17 +1,21 @@
 import Follow from '../models/Follow.js';
 import Profile from '../models/Profile.js'
 import Trade from '../models/Trade.js';
+import User from '../models/User.js'
 const getProfiles = async (req, res, next) => {
     try {
         const { filter } = req.query;
         const allProfiles = await Profile.find().lean();
         const allFollows = await Follow.find().lean()
+        const system = await User.findOne({systemUser:true}).select('_id')
+        const systemId = system? system._id.toString() : null
 
         // const followProfileIds = allFollows.map(f => f.profileId)
 
         const followCountMap = {}
         for (const follow of allFollows) {
             const profileIdStr = follow.profileId.toString()
+            if(systemId && follow.userId.toString() === systemId) continue
             followCountMap[profileIdStr] = (followCountMap[profileIdStr] || 0) + 1;
         }
         // console.log(followCountMap)
