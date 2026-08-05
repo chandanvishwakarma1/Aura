@@ -180,11 +180,22 @@ const getTrades = async (req, res, next) => {
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
+const getProfileById = async (req, res, next) => {
+    try {
+        const { id } = req.params
+        const profile = await Profile.findById(id)
+        if (!profile) return res.status(404).json({ success: false, message: "Profile not found" })
+        return res.json({ success:true, profile})
+    } catch (error) {
+        console.log("Error fetching profile by id: ",  error)
+    }
+}
 const profileController = {
     getProfiles,
     postFollow,
     getFollows,
     getTrades,
-    getProfileReturns
+    getProfileReturns,
+    getProfileById
 }
 export default profileController
