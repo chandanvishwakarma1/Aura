@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
-    initialCaptial:{
+    initialCapital:{
         type: Number,
         default: 1000000
     },
