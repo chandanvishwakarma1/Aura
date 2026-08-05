@@ -10,7 +10,7 @@
     "startMomentum": "node src/breakOut.js",
     "startInsider": "node src/insider.js",
     "startWhale": "node src/whale.js",
-    "startSnapshots": "node src/writeEquitySnapshots.js"
+    "startSnapshots": "node src/writeEquitySnapshot.js"
   },
   "keywords": [],
   "author": "",
