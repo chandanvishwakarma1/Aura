@@ -2,6 +2,7 @@ import Follow from '../models/Follow.js';
 import Profile from '../models/Profile.js'
 import Trade from '../models/Trade.js';
 import User from '../models/User.js'
+import EquitySnapshot from "../models/EquitySnapshot.js"
 const getProfiles = async (req, res, next) => {
     try {
         const { filter } = req.query;
@@ -59,6 +60,64 @@ const getProfiles = async (req, res, next) => {
     } catch (error) {
         console.log("Error fetching all profiles: ", error)
         return res.status(500).json({ message: "Internal server error" })
+    }
+}
+
+const RANGE_DAYS = {
+    '1W': 7,
+    '1M': 30,
+    '3M': 90,
+    '6M': 180,
+    '1Y': 365,
+    'ALL': null //all
+}
+
+const getProfileReturns = async (req,res,next) => {
+    try {
+        const { id: profileId } = req.params
+        const range = (req.query.range || '1M').toUpperCase()
+
+        if (!(range in RANGE_DAYS)) {
+            return res.status(400).json({ success: false, message: 'Invalid range. Use 1W, 1M, 3M, 6M, 1Y, ALL' })
+        }
+
+        const rangeDays = RANGE_DAYS[range]
+        let queryFilter = { profileId }
+        let requestedStart = null
+
+        if (rangeDays !== null) {
+            requestedStart = new Date()
+            requestedStart.setDate(requestedStart.getDate() - rangeDays)
+            queryFilter.date = { $gte: requestedStart }
+        }
+        //oldest
+        let windowSnapshot = await EquitySnapshot.find(queryFilter).sort({ date: 1 }).lean()
+
+        let hasFullHistory = true;
+        if (windowSnapshot.length === 0 && rangeDays !== null) {
+            windowSnapshot = await EquitySnapshot.find({ profileId }).sort({ date: 1 }).lean()
+            hasFullHistory = false;
+        } else if (rangeDays !== null && windowSnapshot.length > 0) {
+            hasFullHistory = windowSnapshot[0].date <= new Date(requestedStart.getTime() + 86400000)
+        }
+
+        if (windowSnapshot.length === 0) {
+            return res.json({ success: true, range, data: [], hasFullHistory: false })
+        }
+        //rebase: %return since start of window not profile inception
+        const baseMultiplier = windowSnapshot[0].cumulativeMultiplier
+        const rebased = windowSnapshot.map(s => ({
+            date: s.date,
+            value: Math.round(((s.cumulativeMultiplier / baseMultiplier) - 1) * 10000) / 100 //% to 2decimal
+        }))
+
+
+        return res.json({ success: true, range, data: rebased, hasFullHistory })
+
+
+    } catch (error) {
+        console.log("Error fetching profile returns: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
 const postFollow = async (req, res, next) => {
@@ -125,6 +184,7 @@ const profileController = {
     getProfiles,
     postFollow,
     getFollows,
-    getTrades
+    getTrades,
+    getProfileReturns
 }
 export default profileController
