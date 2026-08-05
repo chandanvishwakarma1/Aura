@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
     initialCaptial:{
         type: Number,
         default: 1000000
+    },
+    systemUser: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 
