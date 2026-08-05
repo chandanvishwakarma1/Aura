@@ -3,45 +3,50 @@ import Profile from '../models/Profile.js'
 import Trade from '../models/Trade.js';
 import User from '../models/User.js'
 import EquitySnapshot from "../models/EquitySnapshot.js"
+import mongoose from 'mongoose';
 const getProfiles = async (req, res, next) => {
     try {
         const { filter } = req.query;
         const allProfiles = await Profile.find().lean();
         const allFollows = await Follow.find().lean()
-        const system = await User.findOne({systemUser:true}).select('_id')
-        const systemId = system? system._id.toString() : null
+        const system = await User.findOne({ systemUser: true }).select('_id')
+        const systemId = system ? system._id.toString() : null
 
         // const followProfileIds = allFollows.map(f => f.profileId)
 
         const followCountMap = {}
         for (const follow of allFollows) {
             const profileIdStr = follow.profileId.toString()
-            if(systemId && follow.userId.toString() === systemId) continue
+            if (systemId && follow.userId.toString() === systemId) continue
             followCountMap[profileIdStr] = (followCountMap[profileIdStr] || 0) + 1;
         }
         // console.log(followCountMap)
-            const winRateAgg = await Trade.aggregate([
-                {$match: { status: "closed"}},
-                {$group: {
+        const winRateAgg = await Trade.aggregate([
+            { $match: { status: "closed" } },
+            {
+                $group: {
                     _id: "$profileId",
-                    total: { $sum: 1},
-                    wins: { $sum: { $cond: [{ $gt: ["$pnlAtClose", 0]}, 1 ,0]}}
-                }},
-                {$project: {
+                    total: { $sum: 1 },
+                    wins: { $sum: { $cond: [{ $gt: ["$pnlAtClose", 0] }, 1, 0] } }
+                }
+            },
+            {
+                $project: {
                     profileId: "$_id",
-                    winRate: { $multiply: [{ $divide: ["$wins", "$total"]}, 100]},
+                    winRate: { $multiply: [{ $divide: ["$wins", "$total"] }, 100] },
                     wins: "$wins",
                     total: "$total"
-                }}
-            ])
-
-            const winRateMap = {}
-            for(const item of winRateAgg){
-                const profileIdStr = item.profileId.toString()
-                winRateMap[profileIdStr] = item.winRate;
+                }
             }
-        
-        
+        ])
+
+        const winRateMap = {}
+        for (const item of winRateAgg) {
+            const profileIdStr = item.profileId.toString()
+            winRateMap[profileIdStr] = item.winRate;
+        }
+
+
         const profileWithCounts = allProfiles.map(profile => {
             const profileIdStr = profile._id.toString()
             return {
@@ -72,7 +77,7 @@ const RANGE_DAYS = {
     'ALL': null //all
 }
 
-const getProfileReturns = async (req,res,next) => {
+const getProfileReturns = async (req, res, next) => {
     try {
         const { id: profileId } = req.params
         const range = (req.query.range || '1M').toUpperCase()
@@ -180,16 +185,74 @@ const getTrades = async (req, res, next) => {
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
-const getProfileById = async (req, res, next) => {
-    try {
-        const { id } = req.params
-        const profile = await Profile.findById(id)
-        if (!profile) return res.status(404).json({ success: false, message: "Profile not found" })
-        return res.json({ success:true, profile})
-    } catch (error) {
-        console.log("Error fetching profile by id: ",  error)
+
+const getProfileById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // 1. Validate ObjectId format upfront to prevent CastError crashes
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: "Invalid profile ID format" });
     }
-}
+
+    // 2. Fetch profile using .lean() for a plain JS object
+    const profile = await Profile.findById(id).lean();
+    if (!profile) {
+      return res.status(404).json({ success: false, message: "Profile not found" });
+    }
+
+    const profileObjectId = new mongoose.Types.ObjectId(id);
+
+    // 3. Run queries in parallel for better performance
+    const [systemUser, winRateAgg] = await Promise.all([
+      User.findOne({ systemUser: true }).select('_id').lean(),
+      Trade.aggregate([
+        { $match: { profileId: profileObjectId, status: "closed" } },
+        {
+          $group: {
+            _id: "$profileId",
+            total: { $sum: 1 },
+            wins: { $sum: { $cond: [{ $gt: ["$pnlAtClose", 0] }, 1, 0] } }
+          }
+        },
+        {
+          $project: {
+            winRate: {
+              $cond: [
+                { $eq: ["$total", 0] },
+                0,
+                { $multiply: [{ $divide: ["$wins", "$total"] }, 100] }
+              ]
+            }
+          }
+        }
+      ])
+    ]);
+
+    // Build follow query filtering out system user if present
+    const followQuery = { profileId: profileObjectId };
+    if (systemUser) {
+      followQuery.userId = { $ne: systemUser._id };
+    }
+
+    const followCount = await Follow.countDocuments(followQuery);
+    const winRate = winRateAgg.length > 0 ? winRateAgg[0].winRate : 0;
+
+    // 4. Construct clean response payload
+    const profileWithCounts = {
+      ...profile,
+      followCount,
+      winRate: Number(winRate.toFixed(2))
+    };
+
+    return res.json({ success: true, profile: profileWithCounts });
+
+  } catch (error) {
+    console.error("Error fetching profile by id: ", error);
+    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
+  }
+};
+
 const profileController = {
     getProfiles,
     postFollow,
