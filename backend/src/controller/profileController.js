@@ -141,13 +141,13 @@ const postFollow = async (req, res, next) => {
         if (!floatNumRegex.test(String(risk))) return res.status(400).json({ message: "Risk should be a between 0 and 1" })
         if (!floatNumRegex.test(String(slippage))) return res.status(400).json({ message: "Slippage should be a between 0 and 1" })
         const userId = req.user._id
-        const user = await User.findOne({_id: userId})
-        if(!user) return res.status(400).json({ success: false, message: "User not found" })
+        const user = await User.findOne({ _id: userId })
+        if (!user) return res.status(400).json({ success: false, message: "User not found" })
         const existingFollow = await Follow.findOne({ userId, profileId })
         if (existingFollow) return res.status(400).json({ success: false, message: "Profile already followed" })
-
-        if(capitalAllocated < user.availableCapital) return res.status(400).json({ success: false, message: "Insufficient funds" }  )
-        user.availableCapital -= capitalAllocated
+        const capital = Number(capitalAllocated)
+        if (capital > user.availableCapital) return res.status(400).json({ success: false, message: "Insufficient funds" })
+        user.availableCapital -= capital
         await user.save()
 
         const follow = new Follow({
@@ -193,70 +193,70 @@ const getTrades = async (req, res, next) => {
 }
 
 const getProfileById = async (req, res) => {
-  try {
-    const { id } = req.params;
+    try {
+        const { id } = req.params;
 
-    // 1. Validate ObjectId format upfront to prevent CastError crashes
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid profile ID format" });
-    }
-
-    // 2. Fetch profile using .lean() for a plain JS object
-    const profile = await Profile.findById(id).lean();
-    if (!profile) {
-      return res.status(404).json({ success: false, message: "Profile not found" });
-    }
-
-    const profileObjectId = new mongoose.Types.ObjectId(id);
-
-    // 3. Run queries in parallel for better performance
-    const [systemUser, winRateAgg] = await Promise.all([
-      User.findOne({ systemUser: true }).select('_id').lean(),
-      Trade.aggregate([
-        { $match: { profileId: profileObjectId, status: "closed" } },
-        {
-          $group: {
-            _id: "$profileId",
-            total: { $sum: 1 },
-            wins: { $sum: { $cond: [{ $gt: ["$pnlAtClose", 0] }, 1, 0] } }
-          }
-        },
-        {
-          $project: {
-            winRate: {
-              $cond: [
-                { $eq: ["$total", 0] },
-                0,
-                { $multiply: [{ $divide: ["$wins", "$total"] }, 100] }
-              ]
-            }
-          }
+        // 1. Validate ObjectId format upfront to prevent CastError crashes
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ success: false, message: "Invalid profile ID format" });
         }
-      ])
-    ]);
 
-    // Build follow query filtering out system user if present
-    const followQuery = { profileId: profileObjectId };
-    if (systemUser) {
-      followQuery.userId = { $ne: systemUser._id };
+        // 2. Fetch profile using .lean() for a plain JS object
+        const profile = await Profile.findById(id).lean();
+        if (!profile) {
+            return res.status(404).json({ success: false, message: "Profile not found" });
+        }
+
+        const profileObjectId = new mongoose.Types.ObjectId(id);
+
+        // 3. Run queries in parallel for better performance
+        const [systemUser, winRateAgg] = await Promise.all([
+            User.findOne({ systemUser: true }).select('_id').lean(),
+            Trade.aggregate([
+                { $match: { profileId: profileObjectId, status: "closed" } },
+                {
+                    $group: {
+                        _id: "$profileId",
+                        total: { $sum: 1 },
+                        wins: { $sum: { $cond: [{ $gt: ["$pnlAtClose", 0] }, 1, 0] } }
+                    }
+                },
+                {
+                    $project: {
+                        winRate: {
+                            $cond: [
+                                { $eq: ["$total", 0] },
+                                0,
+                                { $multiply: [{ $divide: ["$wins", "$total"] }, 100] }
+                            ]
+                        }
+                    }
+                }
+            ])
+        ]);
+
+        // Build follow query filtering out system user if present
+        const followQuery = { profileId: profileObjectId };
+        if (systemUser) {
+            followQuery.userId = { $ne: systemUser._id };
+        }
+
+        const followCount = await Follow.countDocuments(followQuery);
+        const winRate = winRateAgg.length > 0 ? winRateAgg[0].winRate : 0;
+
+        // 4. Construct clean response payload
+        const profileWithCounts = {
+            ...profile,
+            followCount,
+            winRate: Number(winRate.toFixed(2))
+        };
+
+        return res.json({ success: true, profile: profileWithCounts });
+
+    } catch (error) {
+        console.error("Error fetching profile by id: ", error);
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" });
     }
-
-    const followCount = await Follow.countDocuments(followQuery);
-    const winRate = winRateAgg.length > 0 ? winRateAgg[0].winRate : 0;
-
-    // 4. Construct clean response payload
-    const profileWithCounts = {
-      ...profile,
-      followCount,
-      winRate: Number(winRate.toFixed(2))
-    };
-
-    return res.json({ success: true, profile: profileWithCounts });
-
-  } catch (error) {
-    console.error("Error fetching profile by id: ", error);
-    return res.status(500).json({ success: false, message: error.message || "Internal server error" });
-  }
 };
 
 const profileController = {
