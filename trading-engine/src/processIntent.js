@@ -7,6 +7,14 @@ import simulateTrade from "./simulateTrade.js";
 const processIntent = async (intent) => {
     const { symbol, side, profileId } = intent;
     const currentPrice = await getCurrentPrice(symbol);
+    if(!currentPrice || isNaN(currentPrice)){
+        console.log(`Skipping intent for ${symbol} - failed to fetch current price.`)
+        return
+    }
+    if(!intent.decisionPrice){
+        console.log(`Skipping intent for ${symbol} - missing decision price reference.`)
+        return
+    }
     // const currentPrice = 341;
     const follows = await Follow.find({ profileId });
     if (follows.length === 0) {

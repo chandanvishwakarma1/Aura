@@ -1,7 +1,7 @@
 import QueuedIntent from "./models/QueuedIntent.js"
 import Follow from "./models/Follow.js"
-import { connectDB, closeDB } from './db.js'
-import getCurrentPrice from "./price.js"
+import { connectDB, closeDB } from './utils//db.js'
+import getCurrentPrice from "./utils/price.js"
 import simulateTrade from "./simulateTrade.js"
 import Trade from './models/Trade.js'
 import Position from "./models/Position.js"

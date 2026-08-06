@@ -1,6 +1,7 @@
 import { connectDB, closeDB } from "./db.js";
 import Disclosure from "../models/Disclosure.js"
 import getMarketCapTier from "./marketCap.js";
+import { fetchWithNseSession } from "./nseSession.js";
 const formatNseDateToIso = (dateStr) => {
     if (!dateStr || typeof dateStr !== 'string') return dateStr;
 
@@ -82,57 +83,11 @@ const fetchWhaleDealsData = async () => {
         // const blockDealsUrl = `${baseUrl}/api/historical/block-deals?from=${fromDate}&to=${toDate}`;
         const largeDealsApiUrl = 'https://www.nseindia.com/api/snapshot-capital-market-largedeal'
 
-        // Hardened Browser Archetype Spoofing
-        const browserHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br', // Crucial to keep lowercase for matching browser network definitions
-            'Connection': 'keep-alive',
-            'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Upgrade-Insecure-Requests': '1'
-        };
-
-        console.log("🚀 Step 1: Initialising secure token handshakes via main report directory...");
-
-        // Target the parent report route directly to trick Akamai session assignment algorithms
-        const reportParentUrl = `${baseUrl}/report-detail/display-bulk-and-block-deals`;
-        const homeRes = await fetch(reportParentUrl, { headers: browserHeaders });
-
-        const rawCookies = homeRes.headers.getSetCookie ? homeRes.headers.getSetCookie() : [];
-        if (rawCookies.length === 0) {
-            throw new Error("NSE context failed to deliver session validation arrays.");
+        console.log("🚀 Step 1: Establishing NSE session and querying Bulk/Block Deal datasets...");
+        const response = await fetchWithNseSession(largeDealsApiUrl);
+        if (!response) {
+            throw new Error("NSE session or request failed.");
         }
-
-        // Formulate clean, validated cookie assignments
-        const cleanCookies = rawCookies.map(cookie => cookie.split(';')[0]).join('; ');
-
-        console.log("⏱️ Human Emulation: Pausing for 3.5 seconds to establish tracking tokens...");
-        await new Promise(resolve => setTimeout(resolve, 3500));
-
-        // Refined Internal Fetch API Header Structure
-        const apiHeaders = {
-            ...browserHeaders,
-            'Accept': 'application/json, text/plain, */*',
-            'Host': '://nseindia.com',
-            'Referer': reportParentUrl,
-            'Cookie': cleanCookies,
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin'
-        };
-
-        delete apiHeaders['Upgrade-Insecure-Requests'];
-        delete apiHeaders['Sec-Fetch-User'];
-
-        console.log("📡 Step 2: Querying Bulk and Block Deal datasets directly...");
-        const response = await fetch(largeDealsApiUrl, { headers: apiHeaders });
         const text = await response.text();
 
         if (!text.trim().startsWith('{')) {

@@ -1,8 +1,6 @@
-import { connectDB, closeDB } from "./db.js";
+import { connectDB, closeDB } from "./utils/db.js";
 import Profile from './models/Profile.js'
-// import Follow from './models/Follow.js'
-// import simulateTrade from './simulateTrade.js'
-import getHistoricalCloses from './getHistoricalCloses.js'
+import getHistoricalCloses from './utils/getHistoricalCloses.js'
 import QueuedIntent from "./models/QueuedIntent.js";
 import Position from "./models/Position.js";
 import Follow from "./models/Follow.js";
@@ -85,7 +83,7 @@ const smaEngine = async () => {
                 console.log(`${symbol}: got ${closes.length} closing prices`);
 
                 const side = evaluateSmaCrossOver(closes, profile.params.shortWindow, profile.params.longWindow)
-                if (side === 'HOLD' || side === 'INSUFFICIENT_DATA') {
+                if (side === 'Hold' || side === 'INSUFFICIENT_DATA') {
                     console.log(`No action for ${symbol} - ${side}`);
                     continue;
                 };

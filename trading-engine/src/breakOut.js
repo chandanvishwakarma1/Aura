@@ -1,4 +1,4 @@
-import { closeDB, connectDB } from "./db.js";
+import { closeDB, connectDB } from "./utils/db.js";
 import { getHistoricalClosePrices } from "./utils/getHistoricalCloses.js";
 import Follow from "./models/Follow.js";
 import Profile from "./models/Profile.js";
@@ -56,7 +56,7 @@ const momentumEngine = async () => {
                 console.log(`${symbol}: got ${closes.length} closing prices`)
 
                 const side = evaluateBreakOut(closes, currentPrice, profile.params.lookback)
-                if (side === "HOLD" || side === "INSUFFICIENT_DATA") {
+                if (side === "Hold" || side === "INSUFFICIENT_DATA") {
                     console.log(`No action for ${symbol} - ${side}`)
                     continue;
                 }

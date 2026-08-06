@@ -36,7 +36,7 @@ const getHistoricalCloses = async (symbol, days = 80) => {
     try {
         const closes = await getHistoricalClosePrices(symbol)
         const liveSnapshot = await yahooFinance.quote(Symbol);
-        if (liveSnapshot.regularMarketPrice !== null) {
+        if (liveSnapshot && liveSnapshot.regularMarketPrice !== null && liveSnapshot.regularMarketPrice !== undefined) {
             closes.push(liveSnapshot.regularMarketPrice)
         }
         // console.log(closes)

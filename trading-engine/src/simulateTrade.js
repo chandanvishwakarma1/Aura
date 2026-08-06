@@ -15,12 +15,16 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
     }
 
     const currentPrice = fillPrice || await getCurrentPrice(symbol);
+    if(!currentPrice || isNaN(currentPrice)) {
+        console.log(`Skipping trade for ${symbol} - no valid price available.`)
+        return tradeExecuted
+    }
 
-    console.log("=== SIMULATE TRADE INPUT DEBUG ===");
-    console.log("follow object:", JSON.stringify(follow, null, 2));
-    console.log("risk value:", risk);
-    console.log("currentPrice value:", currentPrice);
-    console.log("==================================");
+    // console.log("=== SIMULATE TRADE INPUT DEBUG ===");
+    // console.log("follow object:", JSON.stringify(follow, null, 2));
+    // console.log("risk value:", risk);
+    // console.log("currentPrice value:", currentPrice);
+    // console.log("==================================");
 
     if (side == "Buy") {
         if (quantity < 1) {

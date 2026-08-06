@@ -126,6 +126,10 @@ const marketDB = await getlookupDB()
 const getMarketCapTier = async(symbol) =>{
 
     const ticker = symbol
+    if (!marketDB) {
+        console.log(`Market cap database not loaded - cannot resolve ${ticker}`)
+        return null
+    }
     const record = marketDB[ticker.toUpperCase()]
 
     if(record){
@@ -138,6 +142,7 @@ const getMarketCapTier = async(symbol) =>{
         return data.tier;
     } else {
         console.log(`No records found for ${ticker}`)
+        return null
     }
 }
 export default getMarketCapTier;

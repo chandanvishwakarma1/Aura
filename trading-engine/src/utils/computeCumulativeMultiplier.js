@@ -21,9 +21,9 @@ const computeCumulativeMultiplier = async (followId, capitalAllocated) => {
             const liveprices = await fetchBatchMarketPrices(uniqueSymbols)
 
             for (const position of openPositions) {
-                const currentPrice = liveprices[position.symbol].regularMarketPrice
+                const currentPrice = liveprices[position.symbol]
 
-                if (!currentPrice) {
+                if (!currentPrice || isNaN(currentPrice)) {
                     console.log(`Missing price data for ${position.symbol}. Calculation may be skewed`)
                     continue
                 }

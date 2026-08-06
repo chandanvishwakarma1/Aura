@@ -33,6 +33,10 @@ const writeEquitySnapshots = async() => {
             }
 
             const cumulativeMultiplier = await computeCumulativeMultiplier(systemFollow._id, systemFollow.capitalAllocated)
+            if (!cumulativeMultiplier || isNaN(cumulativeMultiplier)) {
+                console.log(`Skipping snapshot for ${profile.name} - invalid cumulative multiplier`)
+                continue
+            }
             const cumulativeReturnPercent = Number(((cumulativeMultiplier-1)*100).toFixed(2))
             await EquitySnapshot.updateOne(
                 {profileId: profile._id, date: today},

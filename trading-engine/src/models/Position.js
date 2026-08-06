@@ -12,15 +12,15 @@ const positionSchema = new mongoose.Schema({
     },
     quantity:{
         type: Number,
-        requied: true
+        required: true
     },
     currentPrice: {
         type: Number,
-        requied: true
+        required: true
     },
     avgPrice: {
         type: Number,
-        requied: true
+        required: true
     }
 },{timestamps: true})
 

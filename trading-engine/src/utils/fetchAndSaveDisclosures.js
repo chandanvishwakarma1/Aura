@@ -1,6 +1,8 @@
 import Disclosure from "../models/Disclosure.js";
 import getMarketCapTier from "./marketCap.js";
 import parseXml from "./xmlParser.js";
+import { fetchWithNseSession } from "./nseSession.js";
+import { closeDB, connectDB } from "./db.js";
 
 const genNseDateString = (daysOffset = 0) => {
     const d = new Date()
@@ -124,56 +126,15 @@ const fetchFreeInsiderData = async () => {
         const toDate = genNseDateString(0)
         const insiderApiUrl = `https://nseindia.com/api/corporates-pit-gg?index=equities&from_date=${fromDate}&to_date=${toDate}`;
 
-        // Advanced Browser Spoofing Headers to bypass Akamai/Cloudflare
-        const browserHeaders = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9,hi;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Connection': 'keep-alive',
-            'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"Windows"',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'none',
-            'Sec-Fetch-User': '?1',
-            'Upgrade-Insecure-Requests': '1'
-        };
-
-        console.log("🚀 Step 1: Simulating User Visit to NSE India Home Page...");
-        const homeRes = await fetch(baseUrl, { headers: browserHeaders });
-
-        // Correctly read multiple Set-Cookie headers returned by NSE
-        const rawCookies = homeRes.headers.getSetCookie ? homeRes.headers.getSetCookie() : [];
-        if (rawCookies.length === 0) {
-            throw new Error("NSE home page loaded, but security cookies were not generated.");
+        console.log(`📡 Step 1: Establishing NSE session and requesting Insider Data Pipeline...[${fromDate} to ${toDate}]`);
+        const dataRes = await fetchWithNseSession(insiderApiUrl, {
+            headers: {
+                'Referer': 'https://nseindia.com/companies-listing/corporate-filings-announcements'
+            }
+        });
+        if (!dataRes) {
+            throw new Error("NSE session or request failed.");
         }
-
-        // Clean cookies and format them for the next request header
-        const cleanCookies = rawCookies.map(cookie => cookie.split(';')[0]).join('; ');
-
-        console.log("⏱️ Human Emulation: Pausing for 3 seconds to generate session token...");
-        await new Promise(resolve => setTimeout(resolve, 3000));
-
-        // Inject the freshly grabbed session cookies and simulate an internal site request
-        const apiHeaders = {
-            ...browserHeaders,
-            'Accept': 'application/json, text/plain, */*',
-            'Host': '://nseindia.com',
-            'Referer': 'https://nseindia.com/companies-listing/corporate-filings-announcements',
-            'Sec-Fetch-Dest': 'empty',
-            'Sec-Fetch-Mode': 'cors',
-            'Sec-Fetch-Site': 'same-origin',
-            'Cookie': cleanCookies
-        };
-
-        // Remove navigational headers not allowed in API fetch calls
-        delete apiHeaders['Upgrade-Insecure-Requests'];
-        delete apiHeaders['Sec-Fetch-User'];
-
-        console.log(`📡 Step 2: Requesting Insider Data Pipeline with Active Session Token...[${fromDate} to ${toDate}]`);
-        const dataRes = await fetch(insiderApiUrl, { headers: apiHeaders });
 
         const text = await dataRes.text();
 
@@ -208,15 +169,17 @@ const fetchFreeInsiderData = async () => {
                 await new Promise(resolve => setTimeout(resolve, 1200));
                 const xmlUrl = new URL(trade.xmlFileName)
 
-                const xmlHeaders = {
-                    ...browserHeaders,
-                    'Accept': 'application/xml,text/xml,application/xhtml+xml,text/html;q=0.9',
-                    'Host': xmlUrl.host, // Dynamically swaps to mops.nseindia.com or archives.nseindia.com
-                    'Referer': 'https://www.nseindia.com/',
-                    'Cookie': cleanCookies
-                };
-
-                const xmlRes = await fetch(trade.xmlFileName, { headers: xmlHeaders });
+                const xmlRes = await fetchWithNseSession(trade.xmlFileName, {
+                    headers: {
+                        'Accept': 'application/xml,text/xml,application/xhtml+xml,text/html;q=0.9',
+                        'Host': xmlUrl.host, // Dynamically swaps to mops.nseindia.com or archives.nseindia.com
+                        'Referer': 'https://www.nseindia.com/'
+                    }
+                });
+                if (!xmlRes) {
+                    console.log(`Skipping parsing payload for ${trade.symbol} : Endpoint restricted.`)
+                    continue
+                }
                 const xmlText = await xmlRes.text();
 
                 if (xmlText.includes("Access Denied") || xmlText.includes("Forbidden") || xmlText.trim().startsWith("<!DOCTYPE html>")) {
@@ -336,5 +299,4 @@ const fetchFreeInsiderData = async () => {
         console.error("\n💥 Process Interrupted:", error.message);
     }
 };
-
 export default fetchFreeInsiderData
