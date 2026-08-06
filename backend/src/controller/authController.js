@@ -91,7 +91,10 @@ const postRegister = async (req, res, next) => {
                 fullName: user.fullName,
                 email: user.email,
                 profileImage: user.profileImage,
-                createdAt: user.createdAt,
+                initialCapital: existingUser.initialCapital,
+                availableCapital: existingUser.availableCapital,
+                systemUser: existingUser.systemUser,
+                createdAt: existingUser.createdAt,
             }
         })
 
@@ -191,6 +194,9 @@ const postLogin = async (req, res, next) => {
                 fullName: existingUser.fullName,
                 email: existingUser.email,
                 profileImage: existingUser.profileImage,
+                initialCapital: existingUser.initialCapital,
+                availableCapital: existingUser.availableCapital,
+                systemUser: existingUser.systemUser,
                 createdAt: existingUser.createdAt,
             }
         });
