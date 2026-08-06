@@ -141,8 +141,14 @@ const postFollow = async (req, res, next) => {
         if (!floatNumRegex.test(String(risk))) return res.status(400).json({ message: "Risk should be a between 0 and 1" })
         if (!floatNumRegex.test(String(slippage))) return res.status(400).json({ message: "Slippage should be a between 0 and 1" })
         const userId = req.user._id
+        const user = await User.findOne({_id: userId})
+        if(!user) return res.status(400).json({ success: false, message: "User not found" })
         const existingFollow = await Follow.findOne({ userId, profileId })
         if (existingFollow) return res.status(400).json({ success: false, message: "Profile already followed" })
+
+        if(capitalAllocated < user.availableCapital) return res.status(400).json({ success: false, message: "Insufficient funds" }  )
+        user.availableCapital -= capitalAllocated
+        await user.save()
 
         const follow = new Follow({
             userId,

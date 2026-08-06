@@ -1,4 +1,3 @@
-import { connectDB, closeDB } from "./db.js";
 import Disclosure from "../models/Disclosure.js"
 import getMarketCapTier from "./marketCap.js";
 import { fetchWithNseSession } from "./nseSession.js";

@@ -66,7 +66,7 @@ const postRegister = async (req, res, next) => {
         const isVerified = true;
 
         //get random avatars
-        const profileImage = `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(username)}`;
+        const profileImage = `https://api.dicebear.com/10.x/waves/svg?seed=${encodeURIComponent(username)}`;
 
         const user = new User({
             username,

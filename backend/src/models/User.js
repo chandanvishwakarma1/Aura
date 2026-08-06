@@ -27,9 +27,13 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
+    availableCapital: {
+        type: Number,
+        default: 10000000
+    },
     initialCapital:{
         type: Number,
-        default: 1000000
+        default: 10000000
     },
     systemUser: {
         type: Boolean,
