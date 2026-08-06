@@ -63,7 +63,7 @@ const Username = () => {
             params: {
                 email,
                 password,
-                username: userName.trim()
+                username: userName.trim().toLowerCase()
             }
         })
     }
