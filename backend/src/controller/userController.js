@@ -103,8 +103,8 @@ const getPortfolioSummary = async (req, res, next) => {
             followBreakdown.push({
                 followId: follow._id,
                 profileId: follow.profileId,
-                capitalAllocated: follow.capitalAllocated,
-                currentValue: followValue,
+                capitalAllocated: follow.capitalAllocated.toFixed(2),
+                currentValue: followValue.toFixed(2),
                 pnl: (followValue - follow.capitalAllocated).toFixed(2)
             })
 
@@ -114,8 +114,8 @@ const getPortfolioSummary = async (req, res, next) => {
                         profileId: follow.profileId,
                         profileImage: profile.profileImage,
                         name: profile.name,
-                        capitalAllocated: follow.capitalAllocated,
-                        currentValue: followValue,
+                        capitalAllocated: follow.capitalAllocated.toFixed(2),
+                        currentValue: followValue.toFixed(2),
                         pnl: (followValue - follow.capitalAllocated).toFixed(2)
                     })
                 }
