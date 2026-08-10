@@ -112,9 +112,9 @@ const getPortfolioSummary = async (req, res, next) => {
         return res.json({
             success: true,
             userId,
-            totalEquity,
-            totalCapitalAllocated,
-            totalReturnPercent,
+            totalEquity: totalEquity.toFixed(2),
+            totalCapitalAllocated: totalCapitalAllocated.toFixed(2),
+            totalReturnPercent: totalReturnPercent.toFixed(2),
             follows: followBreakdown,
             profiles,
             flattenedPositions
