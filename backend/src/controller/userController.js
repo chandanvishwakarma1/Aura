@@ -35,35 +35,38 @@ const getPortfolioSummary = async (req, res, next) => {
 
         const follows = await Follow.find({ userId }).lean()
 
-        if (follows.length === 0) return res.json({ success: false, totalEquity: 0, totalCapitalAllocated: 0, follows: [], flattenedPositions:[] })
+        if (follows.length === 0) return res.json({ success: false, totalEquity: 0, totalCapitalAllocated: 0, follows: [], flattenedPositions: [] })
 
         const followsIds = follows.map(f => f._id)
 
         const realizedResult = await Trade.aggregate([
-            { $match: { followId: {$in: followsIds}, status: 'closed' } },
+            { $match: { followId: { $in: followsIds }, status: 'closed' } },
             { $group: { _id: "$followId", total: { $sum: "$pnlAtClose" } } }
         ])
 
-        const realizedPnlMap = Object.fromEntries(realizedResult.map(r=>[r._id.toString(), r.total]))
+        const realizedPnlMap = Object.fromEntries(realizedResult.map(r => [r._id.toString(), r.total]))
         const allPositions = await Position.find({ followId: { $in: followsIds } }).lean()
 
-        let liveprices={}
-        if(allPositions.length > 0){
+        let liveprices = {}
+        if (allPositions.length > 0) {
             const allSymbols = [...new Set(allPositions.map(p => p.symbol))]
             liveprices = await fetchBatchMarketPrices(allSymbols)
         }
 
-        const positionsByFollowMap={}
+        const positionsByFollowMap = {}
         allPositions.forEach(pos => {
             const fId = pos.followId.toString()
-            if(!positionsByFollowMap[fId]) positionsByFollowMap[fId] = []
+            if (!positionsByFollowMap[fId]) positionsByFollowMap[fId] = []
             positionsByFollowMap[fId].push(pos)
         })
 
         let totalEquity = 0
         let totalCapitalAllocated = 0
+        const profilesBreakdown = []
         const followBreakdown = []
         const flattenedPositions = []
+
+        const profiles = await Profile.find().lean()
 
         for (const follow of follows) {
             const followIdStr = follow._id.toString()
@@ -88,6 +91,8 @@ const getPortfolioSummary = async (req, res, next) => {
                         currentPrice: price,
                         unrealizedPnl: singlePosPnl.toFixed(2)
                     })
+
+
                 }
             }
 
@@ -102,8 +107,20 @@ const getPortfolioSummary = async (req, res, next) => {
                 currentValue: followValue,
                 pnl: (followValue - follow.capitalAllocated).toFixed(2)
             })
+
+            for(const profile of profiles){
+                if(profile._id.toString() === follow.profileId.toString()){
+                    profilesBreakdown.push({
+                        profileId: follow.profileId,
+                        profileImage: profile.profileImage,
+                        profileName: profile.name,
+                        capitalAllocated: follow.capitalAllocated,
+                        currentValue: followValue,
+                        pnl: (followValue - follow.capitalAllocated).toFixed(2)
+                    })
+                }
+            }
         }
-        const profiles = await Profile.find().lean()
 
         const totalReturnPercent = totalCapitalAllocated > 0
             ? Number((((totalEquity - totalCapitalAllocated) / totalCapitalAllocated) * 100).toFixed(2))
@@ -116,7 +133,7 @@ const getPortfolioSummary = async (req, res, next) => {
             totalCapitalAllocated: totalCapitalAllocated.toFixed(2),
             totalReturnPercent: totalReturnPercent.toFixed(2),
             follows: followBreakdown,
-            profiles,
+            profiles: profilesBreakdown,
             flattenedPositions
         })
 
@@ -183,12 +200,12 @@ const getUserReturns = async (req, res, next) => {
     }
 }
 
-const getUpdatedUser = async(req,res,next) => {
+const getUpdatedUser = async (req, res, next) => {
     try {
         const { id: userId } = req.params
 
         const user = await User.findById({ _id: userId }).select('-password').lean()
-        if(!user) return res.status(404).json({ success: false, message: "User not found" })
+        if (!user) return res.status(404).json({ success: false, message: "User not found" })
 
         return res.json({ success: true, user })
     } catch (error) {
