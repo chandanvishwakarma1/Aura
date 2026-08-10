@@ -1,18 +1,66 @@
-import { View, Text, Switch } from 'react-native'
-import React, { useState } from 'react'
+import { View, Text, Switch, ScrollView,RefreshControl } from 'react-native'
+import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../../../store/authStore'
 import { Image } from 'expo-image'
 import { BadgeInfo, BellRing, SunMoon, WalletMinimal } from 'lucide-react-native'
+import { ApiError } from '@/utils/apiError'
+import { useQuery } from '@tanstack/react-query'
 
+const fetchUpatedUser = async (token:string, id:string) => {
+  
+
+  const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${id}`, {
+    method: "GET",
+    headers: {
+      'Authorization': 'Bearer ' + token
+    }
+  })
+  if (!res.ok) throw new ApiError(`Failed to fetch user`)
+  const resData = await res.json()
+  return resData.user
+}
 const Profile = () => {
-  const { user } = useAuthStore()
+  const { user: storedUser, token, setUser } = useAuthStore()
+  const { data: updatedUser, refetch, isRefetching, error, isLoading } = useQuery({
+    queryKey: ['userProfile', storedUser?.id],
+    queryFn: () => fetchUpatedUser(token, storedUser?.id),
+    enabled: !!storedUser?.id
+  })
+
+  if(error){
+    console.log(`Error: ${error.message}`)
+  }
+
+  useEffect(()=>{
+    if(updatedUser){
+      setUser({
+        ...updatedUser,
+        id: updatedUser._id
+      })
+    }
+  },[updatedUser,setUser])
+
+  const user =  storedUser
+
+
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(false);
   const [isDark, setIsDark] = useState(false)
   const toggleSwitch = () => setIsNotificationEnabled(previousState => !previousState)
   const toggleDark = () => setIsDark(previousState => !previousState)
-  // console.log(user)
+  // console.log(user.id)
+  // console.log(updatedUser)
   return (
-    <View className='flex-1 mx-6'>
+    <ScrollView 
+    className='flex-1 mx-6'
+    showsVerticalScrollIndicator={false}
+    refreshControl={
+      <RefreshControl
+      refreshing={isRefetching}
+      onRefresh={refetch}
+      colors={['#4A629B']} //android
+      tintColor={'#4A629B'} //ios
+      />
+    }>
       <View className='mt-4'>
 
         <Text className='text-3xl font-bold'>Account</Text>
@@ -68,13 +116,13 @@ const Profile = () => {
 
         </View>
       </View>
-      <View className='flex-row justify-between items-center mt-6 bg-gray-100 rounded-3xl px-6 py-6'>
+      <View className='flex-row justify-between items-center mb-6 mt-6 bg-gray-100 rounded-3xl px-6 py-6'>
         <View className='flex-row gap-3 items-center'>
           <BadgeInfo size={20} />
           <Text>Support</Text>
         </View>
       </View>
-    </View>
+    </ScrollView>
   )
 }
 

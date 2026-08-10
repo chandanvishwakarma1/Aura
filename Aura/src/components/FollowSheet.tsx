@@ -17,7 +17,7 @@ interface FollowSheetProps {
 }
 const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profileId }, ref) => {
     const bottomSheetRef = useRef<BottomSheet>(null)
-    const { token } = useAuthStore()
+    const { token, user, setUser } = useAuthStore()
     const snapPoints = useMemo(() => ['76%', '90%'], [])
     const [isOpen, setIsOpen] = useState(false)
     const [capitalAllocated, setCapitalAllocated] = useState(2500000)
@@ -94,9 +94,16 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                 if (!res.ok) throw new ApiError(data.message || 'Failed to follow profile', res.status)
                 return data
             },
-            onSuccess: () => {
+            onSuccess: (data) => {
                 Alert.alert('Success', 'You are now copying this profile')
                 queryClient.invalidateQueries({ queryKey: ['profile', profileId] })
+                queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id]})
+                if(data?.user){
+                    setUser({
+                        ...data.user,
+                        id: data.user._id
+                    })
+                }
                 bottomSheetRef.current?.close()
             },
             onError: (err: Error) => {
