@@ -4,6 +4,7 @@ import Position from '../models/Position.js'
 import { fetchBatchMarketPrices } from '../lib/price.js'
 import Trade from "../models/Trade.js";
 import UserEquitySnapshot from "../models/UserEquitySnapshots.js";
+import Profile from "../models/Profile.js";
 
 
 const checkUsername = async (req, res, next) => {
@@ -102,6 +103,7 @@ const getPortfolioSummary = async (req, res, next) => {
                 pnl: (followValue - follow.capitalAllocated).toFixed(2)
             })
         }
+        const profiles = await Profile.find().lean()
 
         const totalReturnPercent = totalCapitalAllocated > 0
             ? Number((((totalEquity - totalCapitalAllocated) / totalCapitalAllocated) * 100).toFixed(2))
@@ -114,6 +116,7 @@ const getPortfolioSummary = async (req, res, next) => {
             totalCapitalAllocated,
             totalReturnPercent,
             follows: followBreakdown,
+            profiles,
             flattenedPositions
         })
 
@@ -133,7 +136,7 @@ const RANGE_DAYS = {
 
 const getUserReturns = async (req, res, next) => {
     try {
-        const { id: userId } = req.params
+        const userId = req.user._id
         const range = (req.query.range || '1M').toUpperCase()
 
         if (!(range in RANGE_DAYS)) {
