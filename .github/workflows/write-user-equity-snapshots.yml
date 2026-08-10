@@ -1,0 +1,21 @@
+# .github/workflows/write-equity-snapshot.yml
+name: Write User Equity Snapshots
+on:
+  schedule:
+    - cron: '30 18 * * *'   # ~12:00 AM IST — after the day's engines (SMA/Breakout/Insider/Whale) have run and settled
+  workflow_dispatch: {}
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: trading-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm run startUserSnapshot
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
