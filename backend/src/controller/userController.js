@@ -180,11 +180,26 @@ const getUserReturns = async (req, res, next) => {
     }
 }
 
+const getUpdatedUser = async(req,res,next) => {
+    try {
+        const { id: userId } = req.params
+
+        const user = await User.findById({ _id: userId }).select('-password').lean()
+        if(!user) return res.status(404).json({ success: false, message: "User not found" })
+
+        return res.json({ success: true, user })
+    } catch (error) {
+        console.log('Error fetching updated user: ', error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+    }
+}
+
 
 const userController = {
     checkUsername,
     getPortfolioSummary,
-    getUserReturns
+    getUserReturns,
+    getUpdatedUser
 }
 
 export default userController;
