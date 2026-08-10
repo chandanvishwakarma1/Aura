@@ -6,6 +6,7 @@ const router = express.Router()
 
 router.post('/checkUsername', userController.checkUsername)
 router.get('/portfolio', protectedRoute,userController.getPortfolioSummary )
+router.get('/home', protectedRoute, userController.getHomeSummary)
 router.get('/returns', protectedRoute, userController.getUserReturns)
 router.get('/:id', protectedRoute, userController.getUpdatedUser)
 

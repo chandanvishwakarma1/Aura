@@ -5,6 +5,8 @@ import { fetchBatchMarketPrices } from '../lib/price.js'
 import Trade from "../models/Trade.js";
 import UserEquitySnapshot from "../models/UserEquitySnapshots.js";
 import Profile from "../models/Profile.js";
+import computeUserEquity from "../lib/computeUserEquity.js";
+
 
 
 const checkUsername = async (req, res, next) => {
@@ -28,7 +30,42 @@ const checkUsername = async (req, res, next) => {
         return res.status(500).json({ success: false, message: "Internal server error" })
     }
 }
+const getHomeSummary = async (req, res, next) => {
+    try {
+        const userId = req.user._id;
 
+        const result = await computeUserEquity(userId)
+        if (!result) return res.json({ success: true, totalEquity: 0, activeCopies: 0, hasYesterdayData: false })
+        const { totalEquity, followCount } = result
+        const today = new Date()
+        today.setUTCHours(0, 0, 0, 0)
+
+        const yesterdaySnapShot = await UserEquitySnapshot.findOne({
+            userId,
+            date: { $lt: today }
+        }).sort({ date: -1 }).lean()
+
+        let todayAmountChange = null
+        let todayPercentChange = null
+
+        if (yesterdaySnapShot) {
+            todayAmountChange = Number((totalEquity - yesterdaySnapShot.totalEquity).toFixed(2))
+            todayPercentChange = Number(((totalEquity - yesterdaySnapShot.totalEquity) / yesterdaySnapShot.totalEquity * 100).toFixed(2))
+
+        }
+        return res.json({
+            success: true,
+            totalEquity,
+            activeCopies: followCount,
+            todayAmountChange,
+            todayPercentChange,
+            hasYesterdayData: !!yesterdaySnapShot
+        })
+    } catch (error) {
+        console.log("Error fetching home summary: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal sever error." })
+    }
+}
 const getPortfolioSummary = async (req, res, next) => {
     try {
         const userId = req.user._id;
@@ -85,8 +122,8 @@ const getPortfolioSummary = async (req, res, next) => {
                     }
                     const singlePosPnl = (price - pos.avgPrice) * pos.quantity
                     unrealizedPnl += singlePosPnl
-                    for(const profile of profiles){
-                        if(profile._id.toString() === follow.profileId.toString()){
+                    for (const profile of profiles) {
+                        if (profile._id.toString() === follow.profileId.toString()) {
 
                             flattenedPositions.push({
                                 ...pos,
@@ -114,8 +151,8 @@ const getPortfolioSummary = async (req, res, next) => {
                 pnl: (followValue - follow.capitalAllocated).toFixed(2)
             })
 
-            for(const profile of profiles){
-                if(profile._id.toString() === follow.profileId.toString()){
+            for (const profile of profiles) {
+                if (profile._id.toString() === follow.profileId.toString()) {
                     profilesBreakdown.push({
                         profileId: follow.profileId,
                         profileImage: profile.profileImage,
@@ -225,7 +262,8 @@ const userController = {
     checkUsername,
     getPortfolioSummary,
     getUserReturns,
-    getUpdatedUser
+    getUpdatedUser,
+    getHomeSummary
 }
 
 export default userController;
