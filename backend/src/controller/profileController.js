@@ -146,7 +146,7 @@ const postFollow = async (req, res, next) => {
         const existingFollow = await Follow.findOne({ userId, profileId })
         if (existingFollow) return res.status(400).json({ success: false, message: "Profile already followed" })
         const capital = Number(capitalAllocated)
-        if (capital > user.availableCapital) return res.status(400).json({ success: false, message: "Insufficient funds" })
+        if (capital > user.availableCapital) return res.status(400).json({ success: false, message: `Insufficient funds - Available: ${user.availableCapital}` })
         user.availableCapital -= capital
         await user.save()
 
@@ -159,7 +159,7 @@ const postFollow = async (req, res, next) => {
         })
         await follow.save()
 
-        return res.json({ success: true, message: "Profile followed successfully", follow })
+        return res.json({ success: true, message: "Profile followed successfully", follow, user })
     } catch (error) {
         console.log("Error following profile: ", error)
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
