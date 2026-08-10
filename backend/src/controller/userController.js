@@ -85,12 +85,18 @@ const getPortfolioSummary = async (req, res, next) => {
                     }
                     const singlePosPnl = (price - pos.avgPrice) * pos.quantity
                     unrealizedPnl += singlePosPnl
+                    for(const profile of profiles){
+                        if(profile._id.toString() === follow.profileId.toString()){
 
-                    flattenedPositions.push({
-                        ...pos,
-                        currentPrice: price,
-                        unrealizedPnl: singlePosPnl.toFixed(2)
-                    })
+                            flattenedPositions.push({
+                                ...pos,
+                                currentPrice: price,
+                                profileId: follow.profileId,
+                                profileImage: profile.profileImage,
+                                unrealizedPnl: singlePosPnl.toFixed(2)
+                            })
+                        }
+                    }
 
 
                 }
