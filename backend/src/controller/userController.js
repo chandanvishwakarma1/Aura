@@ -256,14 +256,28 @@ const getUpdatedUser = async (req, res, next) => {
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
-
+const getTrades = async (req, res, next) => {
+    try {
+        const userId = req.user._id
+        const follows = await Follow.find({ userId })
+        if (follows.length === 0) return res.status(400).json({ success: false, message: "No follows found" })
+        const followIds = follows.map(f => f._id)
+        const trades = await Trade.find({ followId: { $in: followIds } })
+        if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
+        return res.json({ success: true, trades })
+    } catch (error) {
+        console.log("Error fetching trades: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+    }
+}
 
 const userController = {
     checkUsername,
     getPortfolioSummary,
     getUserReturns,
     getUpdatedUser,
-    getHomeSummary
+    getHomeSummary,
+    getTrades
 }
 
 export default userController;
