@@ -263,6 +263,10 @@ const getTrades = async (req, res, next) => {
         if (follows.length === 0) return res.status(400).json({ success: false, message: "No follows found" })
         const followIds = follows.map(f => f._id)
         const trades = await Trade.find({ followId: { $in: followIds } })
+        .populate('profileId', 'name, profileImage')
+        .sort({createdAt: -1})
+        .limit(10)
+        .lean()
         if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
         return res.json({ success: true, trades })
     } catch (error) {
