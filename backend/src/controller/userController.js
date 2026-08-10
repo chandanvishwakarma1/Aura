@@ -3,6 +3,8 @@ import User from "../models/User.js";
 import Position from '../models/Position.js'
 import { fetchBatchMarketPrices } from '../lib/price.js'
 import Trade from "../models/Trade.js";
+import UserEquitySnapshot from "../models/UserEquitySnapshots.js";
+
 
 const checkUsername = async (req, res, next) => {
     try {
@@ -28,54 +30,82 @@ const checkUsername = async (req, res, next) => {
 
 const getPortfolioSummary = async (req, res, next) => {
     try {
-        const userId = req.user.id;
-        const user = await User.findById(userId);
+        const userId = req.user._id;
 
         const follows = await Follow.find({ userId }).lean()
 
-        if (follows.length === 0) return res.status(400).json({ success: false, totalEquity: 0, totalCapitalAllocated: 0, follows: [] })
+        if (follows.length === 0) return res.json({ success: false, totalEquity: 0, totalCapitalAllocated: 0, follows: [], flattenedPositions:[] })
+
+        const followsIds = follows.map(f => f._id)
+
+        const realizedResult = await Trade.aggregate([
+            { $match: { followId: {$in: followsIds}, status: 'closed' } },
+            { $group: { _id: "$followId", total: { $sum: "$pnlAtClose" } } }
+        ])
+
+        const realizedPnlMap = Object.fromEntries(realizedResult.map(r=>[r._id.toString(), r.total]))
+        const allPositions = await Position.find({ followId: { $in: followsIds } }).lean()
+
+        let liveprices={}
+        if(allPositions.length > 0){
+            const allSymbols = [...new Set(allPositions.map(p => p.symbol))]
+            liveprices = await fetchBatchMarketPrices(allSymbols)
+        }
+
+        const positionsByFollowMap={}
+        allPositions.forEach(pos => {
+            const fId = pos.followId.toString()
+            if(!positionsByFollowMap[fId]) positionsByFollowMap[fId] = []
+            positionsByFollowMap[fId].push(pos)
+        })
+
         let totalEquity = 0
         let totalCapitalAllocated = 0
         const followBreakdown = []
+        const flattenedPositions = []
 
-        for(const follow of follows){
-            const realizedResult = await Trade.aggregate([
-                {$match: {followId: follow._id, status:'closed'}},
-                {$group: {_id:null, total: {$sum: "$pnlAtClose"}}}
-            ])
-            const realizedPnl = realizedResult.length > 0 ? realizedResult[0].total:0
+        for (const follow of follows) {
+            const followIdStr = follow._id.toString()
 
-            const openPositions = await Position.find({followId: follow._id}).lean()
+            const realizedPnl = realizedPnlMap[followIdStr] || 0
+            const openPositions = positionsByFollowMap[followIdStr] || []
+
+
             let unrealizedPnl = 0
-            if(openPositions.length > 0){
-                const symbols = [...new Set(openPositions.map(p => p.symbol))]
-                const liveprices = await fetchBatchMarketPrices(symbols)
-                for(const pos of openPositions){
+            if (openPositions.length > 0) {
+                for (const pos of openPositions) {
                     const price = liveprices[pos.symbol]
-                    if(!price){
+                    if (!price) {
                         console.log(`No price for ${pos.symbol} - skipping`)
                         continue
                     }
-                    unrealizedPnl += (price - pos.avgPrice) * pos.quantity
+                    const singlePosPnl = (price - pos.avgPrice) * pos.quantity
+                    unrealizedPnl += singlePosPnl
+
+                    flattenedPositions.push({
+                        ...pos,
+                        currentPrice: price,
+                        unrealizedPnl: singlePosPnl.toFixed(2)
+                    })
                 }
             }
 
             const followValue = follow.capitalAllocated + realizedPnl + unrealizedPnl
-            totalEquity+=followValue
-            totalCapitalAllocated+=follow.capitalAllocated
+            totalEquity += followValue
+            totalCapitalAllocated += follow.capitalAllocated
 
             followBreakdown.push({
                 followId: follow._id,
                 profileId: follow.profileId,
                 capitalAllocated: follow.capitalAllocated,
                 currentValue: followValue,
-                pnl: followValue - follow.capitalAllocated
+                pnl: (followValue - follow.capitalAllocated).toFixed(2)
             })
         }
 
-        const totalReturnPercent = totalCapitalAllocated > 0 
-        ? Number(((totalEquity - totalCapitalAllocated) / totalCapitalAllocated) * 100 ).toFixed(2)
-        : 0
+        const totalReturnPercent = totalCapitalAllocated > 0
+            ? Number((((totalEquity - totalCapitalAllocated) / totalCapitalAllocated) * 100).toFixed(2))
+            : 0
 
         return res.json({
             success: true,
@@ -83,19 +113,78 @@ const getPortfolioSummary = async (req, res, next) => {
             totalEquity,
             totalCapitalAllocated,
             totalReturnPercent,
-            follows: followBreakdown
+            follows: followBreakdown,
+            flattenedPositions
         })
 
     } catch (error) {
         console.log("Error computing portfolio summary: ", error)
-        return res.status(500).json({ success:false, message: error.message || "Internal sever error."})
+        return res.status(500).json({ success: false, message: error.message || "Internal sever error." })
+    }
+}
+const RANGE_DAYS = {
+    '1W': 7,
+    '1M': 30,
+    '3M': 90,
+    '6M': 180,
+    '1Y': 365,
+    'ALL': null //all
+}
+
+const getUserReturns = async (req, res, next) => {
+    try {
+        const { id: userId } = req.params
+        const range = (req.query.range || '1M').toUpperCase()
+
+        if (!(range in RANGE_DAYS)) {
+            return res.status(400).json({ success: false, message: 'Invalid range. Use 1W, 1M, 3M, 6M, 1Y, ALL' })
+        }
+
+        const rangeDays = RANGE_DAYS[range]
+        let queryFilter = { userId }
+        let requestedStart = null
+
+        if (rangeDays !== null) {
+            requestedStart = new Date()
+            requestedStart.setDate(requestedStart.getDate() - rangeDays)
+            queryFilter.date = { $gte: requestedStart }
+        }
+        //oldest
+        let windowSnapshot = await UserEquitySnapshot.find(queryFilter).sort({ date: 1 }).lean()
+
+        let hasFullHistory = true;
+        if (windowSnapshot.length === 0 && rangeDays !== null) {
+            windowSnapshot = await UserEquitySnapshot.find({ userId }).sort({ date: 1 }).lean()
+            hasFullHistory = false;
+        } else if (rangeDays !== null && windowSnapshot.length > 0) {
+            hasFullHistory = windowSnapshot[0].date <= new Date(requestedStart.getTime() + 86400000)
+        }
+
+        if (windowSnapshot.length === 0) {
+            return res.json({ success: true, range, data: [], hasFullHistory: false })
+        }
+        //rebase:
+        const baseEquity = windowSnapshot[0].totalEquity
+        const rebased = windowSnapshot.map(s => ({
+            date: s.date,
+            value: Math.round(((s.totalEquity / baseEquity) - 1) * 10000) / 100 //% to 2decimal
+        }))
+
+
+        return res.json({ success: true, range, data: rebased, hasFullHistory })
+
+
+    } catch (error) {
+        console.log("Error fetching user returns: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
 
 
 const userController = {
     checkUsername,
-    getPortfolioSummary
+    getPortfolioSummary,
+    getUserReturns
 }
 
 export default userController;
