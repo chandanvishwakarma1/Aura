@@ -1,7 +1,7 @@
 import Follow from "../models/Follow.js";
 import User from "../models/User.js";
 import Position from '../models/Position.js'
-import { fetchBatchMarketPrices } from '../lib/price.js'
+import getCurrentPrice, { fetchBatchMarketPrices } from '../lib/price.js'
 import Trade from "../models/Trade.js";
 import UserEquitySnapshot from "../models/UserEquitySnapshots.js";
 import Profile from "../models/Profile.js";
@@ -305,7 +305,8 @@ const getPositionById = async (req, res, next) => {
         if (!posId) return res.status(400).json({ success: false, message: "Position id is required" })
 
         const user = await User.findOne({ _id: userId }).select('_id username').lean()
-        if(!user) return res.status(404).json({ success: false, message: "User not found" })
+        if (!user) return res.status(404).json({ success: false, message: "User not found" })
+
 
         const position = await Position.findById({ _id: posId })
             .populate({
@@ -318,6 +319,19 @@ const getPositionById = async (req, res, next) => {
             })
             .lean()
         if (!position) return res.status(404).json({ success: false, message: "Position not found" })
+
+
+
+        if (position) {
+            const liveprice = await getCurrentPrice(position.symbol)
+
+            const price = liveprice
+            if (!price) {
+                console.log(`No price for ${pos.symbol}`)
+            }
+            const unrealizedPnl = (price - position.avgPrice) * position.quantity
+            position.unrealizedPnl = unrealizedPnl.toFixed(2)
+        }
 
         return res.json({ success: true, user, position })
     } catch (error) {
