@@ -1,4 +1,4 @@
-import { View, Text, ActivityIndicator, FlatList, ScrollView, RefreshControl, useWindowDimensions } from 'react-native'
+import { View, Text, ActivityIndicator, FlatList, ScrollView, RefreshControl, useWindowDimensions, Pressable } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../../../store/authStore'
 import { QueryClient, useQuery } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { ApiError } from '@/utils/apiError'
 import { Image } from 'expo-image'
 import { LineChart } from 'react-native-gifted-charts'
 import { queryClient } from '../_layout'
+import { useRouter } from 'expo-router'
 
 interface Position {
   _id: string,
@@ -56,6 +57,7 @@ const fetchReturns = async (token: string) => {
 
 const Portfolio = () => {
   const { token, user } = useAuthStore()
+  const router = useRouter()
 
   const { data: portfolioData, isPending: isPortfolioPending, error: portfolioErr, refetch: portfolioRefetch, isRefetching } = useQuery({
     queryKey: ['index', 'portfolio'],
@@ -106,6 +108,13 @@ const Portfolio = () => {
 const chartPoints = returnsData?.data || []
   const latestReturns = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].value : 0
   const isPositive = latestReturns >= 0
+
+  const handleOnPress = (id:string) => {
+    router.navigate({
+      pathname: ('/(position)/positionDetail'),
+      params: {id: id}
+    })
+  }
   
   return (
     <ScrollView
@@ -179,10 +188,10 @@ const chartPoints = returnsData?.data || []
               pointerStripColor: '#fff',
               activatePointersOnLongPress: false,
               pointerVanishDelay: 0,
-              pointerLabelComponent: (items: ChartData[]) => {
-                // Update the "Return" stat card live without rendering a tooltip
-                // console.log(items)
-              },
+              // pointerLabelComponent: (items: ChartData[]) => {
+              //   // Update the "Return" stat card live without rendering a tooltip
+              //   // console.log(items)
+              // },
             }}
           />
         ) : (
@@ -193,14 +202,16 @@ const chartPoints = returnsData?.data || []
         <Text className='font-semibold text-xl'>{getProfileHead(profiles.length)}</Text>
         <View className='flex-row mt-6 flex-wrap justify-between gap-y-4'>
           {profiles && profiles.length > 0 ? (
-            profiles.map((item: Profile) => {
+            profiles.map((item: Profile, index: number) => {
+              // console.log(item)
               const { name, profileImage, currentValue } = item
               return (
-                <View key={item.name} className='bg-gray-100 rounded-3xl p-6 gap-y-4' style={{ width: '48%' }}>
+                <View key={index} className='bg-gray-100 rounded-3xl p-6 gap-y-4' style={{ width: '48%' }}>
                   <View className='w-12 h-12 g'>
                     <Image
                       source={profileImage ? { uri: profileImage } : undefined}
-                      style={{ width: '100%', height: '100%', resizeMode: 'cover', borderRadius: 100 }}
+                      style={{ width: '100%', height: '100%', borderRadius: 100 }}
+                      contentFit='cover'
                     />
                   </View>
                   <Text className='font-semibold text-base ' numberOfLines={1}>{name}</Text>
@@ -224,11 +235,16 @@ const chartPoints = returnsData?.data || []
         {positions && positions.length > 0 ? (
           positions.map((item: Position) => {
             return (
-              <View key={item.symbol} className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-gray-100 rounded-3xl p-4'>
+              <Pressable 
+              key={item.symbol} 
+              className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-gray-100 rounded-3xl p-4'
+              onPress={()=>handleOnPress(item._id)}
+              >
                 <View className='w-14 h-14'>
                   <Image
                     source={positions.length > 0 ? { uri: item.profileImage } : undefined}
-                    style={{ width: '100%', height: '100%', resizeMode: 'cover', borderRadius: 100 }}
+                    style={{ width: '100%', height: '100%', borderRadius: 100 }}
+                    contentFit='cover'
                   />
                 </View>
                 <View className='flex-1 flex-row  justify-between'>
@@ -242,7 +258,7 @@ const chartPoints = returnsData?.data || []
 
                   </View>
                 </View>
-              </View>
+              </Pressable>
             )
           })
         ) : (

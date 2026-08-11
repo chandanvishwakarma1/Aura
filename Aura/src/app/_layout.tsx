@@ -5,14 +5,17 @@ import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-cont
 import { AppState, AppStateStatus, Platform, StatusBar, View } from "react-native";
 import { useAuthStore } from '../../store/authStore'
 import { useEffect } from "react";
-import { focusManager, onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { focusManager, onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query"; 
 import NetInfo from "@react-native-community/netinfo";
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+import { LogBox } from "react-native";
+import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated";
+
 
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient()
+export const queryClient = new QueryClient()
 
 onlineManager.setEventListener((setOnline) => {
   return NetInfo.addEventListener((state) => {
@@ -38,7 +41,15 @@ const myTheme = {
     background: '#fff'
   }
 }
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: true,
+});
 
+// Optional: Filter the warning completely out of your Expo mobile screen developer logbox
+LogBox.ignoreLogs([
+  '[Reanimated] Writing to `value` during component render',
+]);
 export default function RootLayout() {
   const router = useRouter()
   const segments = useSegments();

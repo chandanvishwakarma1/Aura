@@ -55,10 +55,11 @@ const fetchReturns = async (profileId: string, token: string | null): Promise<Ch
 
 const ProfileItem = ({ item }: { item: Profile }) => {
   const router = useRouter()
+  const { token } = useAuthStore()
 
   const { data: chartData = [] } = useQuery({
     queryKey: ['profileReturns', 'item._id', '1M'],
-    queryFn: ()=> fetchReturns(item._id, useAuthStore().token),
+    queryFn: ()=> fetchReturns(item._id, token),
     enabled: !!item._id,
     staleTime: 1000*60*15
   })
@@ -83,7 +84,7 @@ const ProfileItem = ({ item }: { item: Profile }) => {
           <View className='w-14 h-14 rounded-full overflow-hidden shrink-0'>
             <Image
               source={item.profileImage ? { uri: item?.profileImage } : undefined}
-              style={{ width: '100%', height: '100%', resizeMode: 'cover', borderRadius: 100 }}
+              style={{ width: '100%', height: '100%', borderRadius: 100 }}
               contentFit='cover'
             />
           </View>
@@ -178,11 +179,7 @@ const Discover = () => {
   }
 
   if (error) {
-    return (
-      <View className='flex-1 justify-center items-center p-4'>
-        <Text className='text-red-600'>Error: {error.message}</Text>
-      </View>
-    )
+    console.log('Error in discover: ', error)
   }
 
   // console.log(JSON.stringify(chartData, null ,2))

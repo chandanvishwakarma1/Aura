@@ -170,7 +170,7 @@ const ProfileDetail = () => {
                     pointerVanishDelay: 0,
                     pointerLabelComponent: (items: ChartData[]) => {
                       // Update the "Return" stat card live without rendering a tooltip
-                      console.log(items)
+                      // console.log(items)
                     },
                   }}
                 />
