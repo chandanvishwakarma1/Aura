@@ -345,6 +345,7 @@ const getPositionById = async (req, res, next) => {
             quantity: pos.quantity,
             avgPrice: pos.avgPrice,
             currentPrice: pos.currentPrice,
+            unrealizedPnl: unrealizedPnl.toFixed(2)
             createdAt: pos.createdAt,
             updatedAt: pos.updatedAt,
             follow: {
@@ -355,8 +356,7 @@ const getPositionById = async (req, res, next) => {
                 _id: pos.followId?.profileId?._id,
                 name: pos.followId?.profileId?.name,
                 profileImage: pos.followId?.profileId?.profileImage,
-                unrealizedPnl: unrealizedPnl.toFixed(2)
-                ,
+                
                 followCount: follows.length
             }
         }
