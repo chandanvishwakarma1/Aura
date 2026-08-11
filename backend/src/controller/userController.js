@@ -263,10 +263,10 @@ const getTrades = async (req, res, next) => {
         if (follows.length === 0) return res.status(400).json({ success: false, message: "No follows found" })
         const followIds = follows.map(f => f._id)
         const trades = await Trade.find({ followId: { $in: followIds } })
-        .populate('profileId', 'name profileImage')
-        .sort({createdAt: -1})
-        .limit(10)
-        .lean()
+            .populate('profileId', 'name profileImage')
+            .sort({ createdAt: -1 })
+            .limit(10)
+            .lean()
         if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
         return res.json({ success: true, trades })
     } catch (error) {
@@ -279,25 +279,52 @@ const getTradeById = async (req, res, next) => {
         const tradeId = req.params.id
         const userId = req.user._id
 
-        if(!tradeId) return res.status(400).json({ success: false, message: "Trade id is required" })
+        if (!tradeId) return res.status(400).json({ success: false, message: "Trade id is required" })
 
 
-        const user = await User.findOne({ _id: userId }).select('-password').lean()
+        const user = await User.findOne({ _id: userId }).select('_id username').lean()
         if (!user) return res.status(404).json({ success: false, message: "User not found" })
 
-            
-        const trade = await Trade.findById({ _id : tradeId })
-        .populate('profileId', 'name profileImage')
-        .lean()
+
+        const trade = await Trade.findById({ _id: tradeId })
+            .populate('profileId', 'name profileImage')
+            .lean()
 
         if (!trade) return res.status(404).json({ success: false, message: "Trade not found" })
-        return res.json({ success: true,user, trade })
+        return res.json({ success: true, user, trade })
     } catch (error) {
         console.log("Error fetching trade by id: ", error)
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
+const getPositionById = async (req, res, next) => {
+    try {
+        const posId = req.params.id;
+        const userId = req.user._id;
 
+        if (!posId) return res.status(400).json({ success: false, message: "Position id is required" })
+
+        const user = await User.findOne({ _id: userId }).select('_id username').lean()
+        if(!user) return res.status(404).json({ success: false, message: "User not found" })
+
+        const position = await Position.findById({ _id: posId })
+            .populate({
+                path: 'followId',
+                select: 'profileId',
+                populate: {
+                    path: 'profileId',
+                    select: 'name profileImage'
+                }
+            })
+            .lean()
+        if (!position) return res.status(404).json({ success: false, message: "Position not found" })
+
+        return res.json({ success: true, user, position })
+    } catch (error) {
+        console.log(`Error fetching position by id: `, error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+    }
+}
 const userController = {
     checkUsername,
     getPortfolioSummary,
@@ -306,6 +333,7 @@ const userController = {
     getHomeSummary,
     getTrades,
     getTradeById,
+    getPositionById
 }
 
 export default userController;
