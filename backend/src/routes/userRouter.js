@@ -9,6 +9,7 @@ router.get('/portfolio', protectedRoute,userController.getPortfolioSummary )
 router.get('/home', protectedRoute, userController.getHomeSummary)
 router.get('/returns', protectedRoute, userController.getUserReturns)
 router.get('/trades', protectedRoute, userController.getTrades)
+router.get('/trade/:id', protectedRoute, userController.getTradeById)
 router.get('/:id', protectedRoute, userController.getUpdatedUser)
 
 export default router;

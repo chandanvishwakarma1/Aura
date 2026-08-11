@@ -274,6 +274,29 @@ const getTrades = async (req, res, next) => {
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
+const getTradeById = async (req, res, next) => {
+    try {
+        const tradeId = req.params.id
+        const userId = req.user._id
+
+        if(!tradeId) return res.status(400).json({ success: false, message: "Trade id is required" })
+
+
+        const user = await User.findOne({ _id: userId }).select('-password').lean()
+        if (!user) return res.status(404).json({ success: false, message: "User not found" })
+
+            
+        const trade = await Trade.findById({ _id : tradeId })
+        .populate('profileId', 'name profileImage')
+        .lean()
+
+        if (!trade) return res.status(404).json({ success: false, message: "Trade not found" })
+        return res.json({ success: true,user, trade })
+    } catch (error) {
+        console.log("Error fetching trade by id: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+    }
+}
 
 const userController = {
     checkUsername,
@@ -281,7 +304,8 @@ const userController = {
     getUserReturns,
     getUpdatedUser,
     getHomeSummary,
-    getTrades
+    getTrades,
+    getTradeById,
 }
 
 export default userController;
