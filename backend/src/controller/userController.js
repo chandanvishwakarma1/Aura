@@ -305,32 +305,60 @@ const getPositionById = async (req, res, next) => {
         if (!posId) return res.status(400).json({ success: false, message: "Position id is required" })
 
         const user = await User.findOne({ _id: userId }).select('_id username').lean()
+        const sysmtemUser = await User.findOne({ systemUser: true }).select('_id username').lean()
         if (!user) return res.status(404).json({ success: false, message: "User not found" })
 
 
-        const position = await Position.findById({ _id: posId })
+
+        const pos = await Position.findById({ _id: posId })
             .populate({
                 path: 'followId',
                 select: 'profileId',
-                populate: {
-                    path: 'profileId',
-                    select: 'name profileImage'
-                }
+                populate: { path: 'profileId', select: 'name profileImage' }
             })
             .lean()
-        if (!position) return res.status(404).json({ success: false, message: "Position not found" })
+        if (!posId) return res.status(404).json({ success: false, message: "Position not found" })
 
+        const follows = await Follow.find({ profileId: pos.followId.profileId }).lean()
+        if (follows.length === 0) return res.status(404).json({ success: false, message: "Follow not found" })
+        for (const follow of follows) {
+            if (follow.userId.toString() === sysmtemUser._id.toString()){
+                follows.pop()
+                break;
+            }
+        }
 
-
-        if (position) {
-            const liveprice = await getCurrentPrice(position.symbol)
+        let unrealizedPnl = 0
+        if (pos) {
+            const liveprice = await getCurrentPrice(pos.symbol)
 
             const price = liveprice
             if (!price) {
                 console.log(`No price for ${pos.symbol}`)
             }
-            const unrealizedPnl = (price - position.avgPrice) * position.quantity
-            position.unrealizedPnl = unrealizedPnl.toFixed(2)
+            unrealizedPnl = (price - pos.avgPrice) * pos.quantity
+        }
+
+        const position = {
+            _id: pos._id,
+            symbol: pos.symbol,
+            quantity: pos.quantity,
+            avgPrice: pos.avgPrice,
+            currentPrice: pos.currentPrice,
+            createdAt: pos.createdAt,
+            updatedAt: pos.updatedAt,
+            follow: {
+                _id: pos.followId._id,
+                profileId: pos.followId?._id
+            },
+            profile: {
+                _id: pos.followId?.profileId?._id,
+                name: pos.followId?.profileId?.name,
+                profileImage: pos.followId?.profileId?.profileImage,
+                unrealizedPnl: unrealizedPnl.toFixed(2)
+                ,
+                followCount: follows.length
+            }
         }
 
         return res.json({ success: true, user, position })
