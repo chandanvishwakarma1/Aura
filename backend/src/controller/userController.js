@@ -345,7 +345,7 @@ const getPositionById = async (req, res, next) => {
             quantity: pos.quantity,
             avgPrice: pos.avgPrice,
             currentPrice: pos.currentPrice,
-            unrealizedPnl: unrealizedPnl.toFixed(2)
+            unrealizedPnl: unrealizedPnl.toFixed(2),
             createdAt: pos.createdAt,
             updatedAt: pos.updatedAt,
             follow: {
