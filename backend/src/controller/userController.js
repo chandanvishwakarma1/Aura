@@ -286,11 +286,42 @@ const getTradeById = async (req, res, next) => {
         if (!user) return res.status(404).json({ success: false, message: "User not found" })
 
 
-        const trade = await Trade.findById({ _id: tradeId })
+        const tradeDoc = await Trade.findById({ _id: tradeId })
             .populate('profileId', 'name profileImage')
             .lean()
 
-        if (!trade) return res.status(404).json({ success: false, message: "Trade not found" })
+        if (!tradeDoc) return res.status(404).json({ success: false, message: "Trade not found" })
+        const follows = await Follow.find({ profileId: tradeDoc.profileId._id }).lean()
+        if (follows.length === 0) return res.status(404).json({ success: false, message: "Follow not found" })
+        for (const follow of follows) {
+            if (follow.userId.toString() === user._id.toString()) {
+                follows.pop()
+                break;
+            }
+        }
+        const trade = {
+            _id: tradeDoc._id,
+            followId: tradeDoc.followId,
+            symbol: tradeDoc.symbol,
+            side: tradeDoc.side,
+            quantity: tradeDoc.quantity,
+            price: tradeDoc.price,
+            status: tradeDoc.status,
+            rejectionStatus: tradeDoc.rejectionStatus,
+            exitPrice: tradeDoc.exitPrice,
+            pnlAtClose: tradeDoc.pnlAtClose,
+            triggerRefId: tradeDoc.triggerRefId,
+            createdAt: tradeDoc.createdAt,
+            updatedAt: tradeDoc.updatedAt,
+            profile: {
+                _id: tradeDoc.profileId._id,
+                name: tradeDoc.profileId.name,
+                profileImage: tradeDoc.profileId.profileImage,
+                followCount: follows.length
+            }
+
+
+        }
         return res.json({ success: true, user, trade })
     } catch (error) {
         console.log("Error fetching trade by id: ", error)
@@ -322,7 +353,7 @@ const getPositionById = async (req, res, next) => {
         const follows = await Follow.find({ profileId: pos.followId.profileId }).lean()
         if (follows.length === 0) return res.status(404).json({ success: false, message: "Follow not found" })
         for (const follow of follows) {
-            if (follow.userId.toString() === sysmtemUser._id.toString()){
+            if (follow.userId.toString() === sysmtemUser._id.toString()) {
                 follows.pop()
                 break;
             }
@@ -356,7 +387,7 @@ const getPositionById = async (req, res, next) => {
                 _id: pos.followId?.profileId?._id,
                 name: pos.followId?.profileId?.name,
                 profileImage: pos.followId?.profileId?.profileImage,
-                
+
                 followCount: follows.length
             }
         }
