@@ -313,7 +313,7 @@ const getTradeById = async (req, res, next) => {
             price: tradeDoc.price,
             currentPrice,
             status: tradeDoc.status,
-            rejectionStatus: tradeDoc.rejectionStatus,
+            rejectionReason: tradeDoc.rejectionReason,
             exitPrice: tradeDoc.exitPrice,
             pnlAtClose: tradeDoc.pnlAtClose,
             triggerRefId: tradeDoc.triggerRefId,
