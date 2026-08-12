@@ -1,7 +1,7 @@
 import Follow from "../models/Follow.js";
 import User from "../models/User.js";
 import Position from '../models/Position.js'
-import getCurrentPrice, { fetchBatchMarketPrices } from '../lib/price.js'
+import getCurrentPrice, { fetchBatchMarketPrices, getYesterdayPrice } from '../lib/price.js'
 import Trade from "../models/Trade.js";
 import UserEquitySnapshot from "../models/UserEquitySnapshots.js";
 import Profile from "../models/Profile.js";
@@ -286,21 +286,16 @@ const getTradeById = async (req, res, next) => {
         if (!user) return res.status(404).json({ success: false, message: "User not found" })
 
 
-        const tradeDoc = await Trade.findById({ _id: tradeId })
+        const tradeDoc = await Trade.findById(tradeId)
             .populate('profileId', 'name profileImage')
             .lean()
 
         if (!tradeDoc) return res.status(404).json({ success: false, message: "Trade not found" })
-        const follows = await Follow.find({ profileId: tradeDoc.profileId._id }).lean()
-        if (follows.length === 0) return res.status(404).json({ success: false, message: "Follow not found" })
-        for (const follow of follows) {
-            if (follow.userId.toString() === user._id.toString()) {
-                follows.pop()
-                break;
-            }
-        }
-        const currentPrice = await getCurrentPrice(tradeDoc.symbol)
-        if(!currentPrice) {
+        const follow = await Follow.findById(tradeDoc.followId).lean()
+        if (!follow || follow.userId.toString() !== userId.toString()) return res.status(403).json({ success: false, message: "Not authorized to view this trade" })
+
+        let currentPrice = await getCurrentPrice(tradeDoc.symbol)
+        if (!currentPrice) {
             console.log(`No currentPrice for ${tradeDoc.symbol} - return null`)
             currentPrice = null
         }
@@ -323,7 +318,6 @@ const getTradeById = async (req, res, next) => {
                 _id: tradeDoc.profileId._id,
                 name: tradeDoc.profileId.name,
                 profileImage: tradeDoc.profileId.profileImage,
-                followCount: follows.length
             }
 
 
@@ -358,14 +352,13 @@ const getPositionById = async (req, res, next) => {
 
         const follows = await Follow.find({ profileId: pos.followId.profileId }).lean()
         if (follows.length === 0) return res.status(404).json({ success: false, message: "Follow not found" })
-        for (const follow of follows) {
-            if (follow.userId.toString() === sysmtemUser._id.toString()) {
-                follows.pop()
-                break;
-            }
-        }
+        const filteredFollow = follows.filter(f => f.userId.toString() !== sysmtemUser._id.toString())
+        const previousClose = await getYesterdayPrice(pos.symbol)
+        if (!previousClose) console.log(`No previous close for ${pos.symbol}`)
+        const todaysChangeAmount = ((pos.currentPrice - previousClose) * pos.quantity).toFixed(2)
+        const todaysChangePercent = ((pos.currentPrice - previousClose)/ previousClose * 100).toFixed(2)
 
-        let unrealizedPnl = 0
+            let unrealizedPnl = 0
         if (pos) {
             const liveprice = await getCurrentPrice(pos.symbol)
 
@@ -382,6 +375,8 @@ const getPositionById = async (req, res, next) => {
             quantity: pos.quantity,
             avgPrice: pos.avgPrice,
             currentPrice: pos.currentPrice,
+            todaysChangeAmount,
+            todaysChangePercent,
             unrealizedPnl: unrealizedPnl.toFixed(2),
             createdAt: pos.createdAt,
             updatedAt: pos.updatedAt,
@@ -394,7 +389,7 @@ const getPositionById = async (req, res, next) => {
                 name: pos.followId?.profileId?.name,
                 profileImage: pos.followId?.profileId?.profileImage,
 
-                followCount: follows.length
+                followCount: filteredFollow.length
             }
         }
 

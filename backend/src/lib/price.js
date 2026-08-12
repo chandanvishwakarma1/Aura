@@ -1,30 +1,30 @@
 import YahooFinance from "yahoo-finance2";
 import { getNsePrice } from "./nseSession.js";
 
-const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey']});
+const yahooFinance = new YahooFinance({ suppressNotices: ['ripHistorical', 'yahooSurvey'] });
 
-const getCurrentPrice = async(symbol) => {
+const getCurrentPrice = async (symbol) => {
     const Symbol = symbol + '.NS'
     try {
         const liveSnapshot = await yahooFinance.quote(Symbol);
-        if(!liveSnapshot || liveSnapshot.regularMarketPrice === undefined) {
+        if (!liveSnapshot || liveSnapshot.regularMarketPrice === undefined) {
             console.warn(`Price property missing for ${symbol}. API response: `, liveSnapshot)
             return await getNsePrice(symbol);
         }
         // console.log(liveSnapshot.regularMarketPrice)
         return liveSnapshot.regularMarketPrice;
-        } catch (error) {
-        console.error(`Failed fetching price for ${symbol}`,error);
+    } catch (error) {
+        console.error(`Failed fetching price for ${symbol}`, error);
         return await getNsePrice(symbol);
     }
 }
 export default getCurrentPrice;
 
-export const fetchBatchMarketPrices = async(symbols) => {
+export const fetchBatchMarketPrices = async (symbols) => {
     const nsSymbols = symbols.map(s => s + '.NS')
     const prices = {}
     try {
-        const quotes = await yahooFinance.quote(nsSymbols, {return: 'object',fields: ['symbol','regularMarketPrice']})
+        const quotes = await yahooFinance.quote(nsSymbols, { return: 'object', fields: ['symbol', 'regularMarketPrice'] })
         for (const [fullSymbol, quote] of Object.entries(quotes)) {
             if (!quote || quote.regularMarketPrice === undefined) {
                 console.warn(`Price property missing for ${fullSymbol}. API response: `, quote)
@@ -46,4 +46,20 @@ export const fetchBatchMarketPrices = async(symbols) => {
         }
     }
     return prices
+}
+
+export const getYesterdayPrice = async (symbol) => {
+    const Symbol = symbol + '.NS'
+    try {
+        const liveSnapshot = await yahooFinance.quote(Symbol);
+        if (!liveSnapshot || liveSnapshot.regularMarketPreviousClose === undefined) {
+            console.warn(`Price property missing for ${symbol}. API response: `, liveSnapshot)
+            return null
+        }
+        // console.log(liveSnapshot.regularMarketPrice)
+        return liveSnapshot.regularMarketPreviousClose;
+    } catch (error) {
+        console.error(`Failed fetching price for ${symbol}`, error);
+        return null;
+    }
 }
