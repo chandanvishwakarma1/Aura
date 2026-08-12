@@ -299,6 +299,11 @@ const getTradeById = async (req, res, next) => {
                 break;
             }
         }
+        const currentPrice = await getCurrentPrice(tradeDoc.symbol)
+        if(!currentPrice) {
+            console.log(`No currentPrice for ${tradeDoc.symbol} - return null`)
+            currentPrice = null
+        }
         const trade = {
             _id: tradeDoc._id,
             followId: tradeDoc.followId,
@@ -306,6 +311,7 @@ const getTradeById = async (req, res, next) => {
             side: tradeDoc.side,
             quantity: tradeDoc.quantity,
             price: tradeDoc.price,
+            currentPrice,
             status: tradeDoc.status,
             rejectionStatus: tradeDoc.rejectionStatus,
             exitPrice: tradeDoc.exitPrice,
