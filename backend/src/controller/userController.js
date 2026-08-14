@@ -256,7 +256,7 @@ const getUpdatedUser = async (req, res, next) => {
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
-const getTrades = async (req, res, next) => {
+const getRecentTrades = async (req, res, next) => {
     try {
         const userId = req.user._id
         const follows = await Follow.find({ userId })
@@ -266,6 +266,41 @@ const getTrades = async (req, res, next) => {
             .populate('profileId', 'name profileImage')
             .sort({ createdAt: -1 })
             .limit(10)
+            .lean()
+        if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
+
+        const activePositions = await Position.find({ followId: { $in: followIds } })
+            .select('_id followId symbol')
+            .lean()
+
+        const positionMap = new Map()
+        activePositions.forEach(pos => {
+            positionMap.set(`${pos.followId.toString()}_${pos.symbol}`, pos._id)
+        })
+
+        const tradesWithPositions = trades.map(trade => {
+            if(trade.status === 'open'){
+                const key = `${trade.followId.toString()}_${trade.symbol}`
+                const posId = positionMap.get(key) || null
+                return {...trade, positionId:posId}
+            }
+            return {...trade, positionId: null}
+        })
+        return res.json({ success: true, trades:tradesWithPositions })
+    } catch (error) {
+        console.log("Error fetching trades: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+    }
+}
+const getTrades = async (req, res, next) => {
+    try {
+        const userId = req.user._id
+        const follows = await Follow.find({ userId })
+        if (follows.length === 0) return res.status(400).json({ success: false, message: "No follows found" })
+        const followIds = follows.map(f => f._id)
+        const trades = await Trade.find({ followId: { $in: followIds } })
+            .populate('profileId', 'name profileImage')
+            .sort({ createdAt: -1 })
             .lean()
         if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
 
@@ -431,6 +466,7 @@ const userController = {
     getUserReturns,
     getUpdatedUser,
     getHomeSummary,
+    getRecentTrades,
     getTrades,
     getTradeById,
     getPositionById
