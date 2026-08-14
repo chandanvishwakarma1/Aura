@@ -33,5 +33,6 @@ const followSchema = new mongoose.Schema({
     }
 }, {timestamps: true})
 
+followSchema.index({userId:1,profileId:1})
 const Follow = mongoose.model('Follow', followSchema)
 export default Follow;

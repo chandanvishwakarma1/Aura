@@ -24,5 +24,6 @@ const positionSchema = new mongoose.Schema({
     }
 },{timestamps: true})
 
+positionSchema.index({followId:1,symbol:1})
 const Position = mongoose.model('Position', positionSchema)
 export default Position;
