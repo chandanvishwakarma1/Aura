@@ -54,6 +54,6 @@ const tradeSchema = new mongoose.Schema({
         ref: 'QueuedIntent'
     }
 },{timestamps: true})
-tradeSchema.index({followId:1,status:1})
+tradeSchema.index({followId:1,status:1, createdAt: -1})
 const Trade = mongoose.model('Trade', tradeSchema)
 export default Trade;

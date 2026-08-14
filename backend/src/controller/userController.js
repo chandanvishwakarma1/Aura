@@ -299,28 +299,44 @@ const getTrades = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
+        const status = req.query.status;
+
 
         const follows = await Follow.find({ userId })
-        if (follows.length === 0) return res.status(400).json({ success: false, message: "No follows found" })
+        if (follows.length === 0) return res.json({ success: true, trades: [], totalTrades: 0, totalPages: 0 })
         const followIds = follows.map(f => f._id)
-        const trades = await Trade.find({ followId: { $in: followIds } })
-            .populate('profileId', 'name profileImage')
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean()
-        if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
+        const query = { followId: { $in: followIds } }
 
-        const totalTrades = await Trade.countDocuments({ followId: { $in: followIds } })
+        if (status && ['open', 'closed', 'skipped'].includes(status)) {
+            query.status = status
+        }
 
-        const activePositions = await Position.find({ followId: { $in: followIds } })
-            .select('_id followId symbol')
-            .lean()
+        const [trades, totalTrades] = await Promise.all([
+            Trade.find(query)
+                .populate('profileId', 'name profileImage')
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .lean(),
+            Trade.countDocuments(query)
+        ])
+        if (trades.length === 0) return res.json({ success: true, trades: [], totalTrades: 0, totalPages: 0 })
 
+        const uniqueOpenTradesymbols = [...new Set(
+            trades.filter(t => t.status === 'open').map(t => t.symbol)
+        )]
         const positionMap = new Map()
-        activePositions.forEach(pos => {
-            positionMap.set(`${pos.followId.toString()}_${pos.symbol}`, pos._id)
-        })
+
+        if (uniqueOpenTradesymbols.length > 0) {
+
+            const activePositions = await Position.find({ followId: { $in: followIds }, symbol: { $in: uniqueOpenTradesymbols } })
+                .select('_id followId symbol')
+                .lean()
+
+            activePositions.forEach(pos => {
+                positionMap.set(`${pos.followId.toString()}_${pos.symbol}`, pos._id)
+            })
+        }
 
         const tradesWithPositions = trades.map(trade => {
             if (trade.status === 'open') {
@@ -330,7 +346,7 @@ const getTrades = async (req, res, next) => {
             }
             return { ...trade, positionId: null }
         })
-        return res.json({ success: true, trades: tradesWithPositions, totalTrades, totalPages: Math.ceil(totalTrades / limit)})
+        return res.json({ success: true, trades: tradesWithPositions, totalTrades, totalPages: Math.ceil(totalTrades / limit) })
     } catch (error) {
         console.log("Error fetching trades: ", error)
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
