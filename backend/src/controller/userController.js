@@ -279,14 +279,14 @@ const getRecentTrades = async (req, res, next) => {
         })
 
         const tradesWithPositions = trades.map(trade => {
-            if(trade.status === 'open'){
+            if (trade.status === 'open') {
                 const key = `${trade.followId.toString()}_${trade.symbol}`
                 const posId = positionMap.get(key) || null
-                return {...trade, positionId:posId}
+                return { ...trade, positionId: posId }
             }
-            return {...trade, positionId: null}
+            return { ...trade, positionId: null }
         })
-        return res.json({ success: true, trades:tradesWithPositions })
+        return res.json({ success: true, trades: tradesWithPositions })
     } catch (error) {
         console.log("Error fetching trades: ", error)
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
@@ -295,14 +295,23 @@ const getRecentTrades = async (req, res, next) => {
 const getTrades = async (req, res, next) => {
     try {
         const userId = req.user._id
+
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+
         const follows = await Follow.find({ userId })
         if (follows.length === 0) return res.status(400).json({ success: false, message: "No follows found" })
         const followIds = follows.map(f => f._id)
         const trades = await Trade.find({ followId: { $in: followIds } })
             .populate('profileId', 'name profileImage')
             .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
             .lean()
         if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
+
+        const totalTrades = await Trade.countDocuments({ followId: { $in: followIds } })
 
         const activePositions = await Position.find({ followId: { $in: followIds } })
             .select('_id followId symbol')
@@ -314,14 +323,14 @@ const getTrades = async (req, res, next) => {
         })
 
         const tradesWithPositions = trades.map(trade => {
-            if(trade.status === 'open'){
+            if (trade.status === 'open') {
                 const key = `${trade.followId.toString()}_${trade.symbol}`
                 const posId = positionMap.get(key) || null
-                return {...trade, positionId:posId}
+                return { ...trade, positionId: posId }
             }
-            return {...trade, positionId: null}
+            return { ...trade, positionId: null }
         })
-        return res.json({ success: true, trades:tradesWithPositions })
+        return res.json({ success: true, trades: tradesWithPositions, totalTrades, totalPages: Math.ceil(totalTrades / limit)})
     } catch (error) {
         console.log("Error fetching trades: ", error)
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
