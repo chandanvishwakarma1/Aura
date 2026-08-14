@@ -268,7 +268,25 @@ const getTrades = async (req, res, next) => {
             .limit(10)
             .lean()
         if (trades.length === 0) return res.status(400).json({ success: false, message: "No trades found" })
-        return res.json({ success: true, trades })
+
+        const activePositions = await Position.find({ followId: { $in: followIds } })
+            .select('_id followId symbol')
+            .lean()
+
+        const positionMap = new Map()
+        activePositions.forEach(pos => {
+            positionMap.set(`${pos.followId.toString()}_${pos.symbol}`, pos._id)
+        })
+
+        const tradesWithPositions = trades.map(trade => {
+            if(trade.status === 'open'){
+                const key = `${trade.followId.toString()}_${trade.symbol}`
+                const posId = positionMap.get(key) || null
+                return {...trade, positionId:posId}
+            }
+            return {...trade, positionId: null}
+        })
+        return res.json({ success: true, trades:tradesWithPositions })
     } catch (error) {
         console.log("Error fetching trades: ", error)
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
@@ -335,13 +353,17 @@ const getPositionById = async (req, res, next) => {
 
         if (!posId) return res.status(400).json({ success: false, message: "Position id is required" })
 
-        const user = await User.findOne({ _id: userId }).select('_id username').lean()
-        const systemUser = await User.findOne({ systemUser: true }).select('_id username').lean()
+        // const user = await User.findOne({ _id: userId }).select('_id username').lean()
+        // const systemUser = await User.findOne({ systemUser: true }).select('_id username').lean()
+        const [user, systemUser] = await Promise.all([
+            User.findById(userId).select('_id username').lean(),
+            User.findOne({ systemUser: true }).select('_id').lean()
+        ])
         if (!user) return res.status(404).json({ success: false, message: "User not found" })
 
 
 
-        const pos = await Position.findById({ _id: posId })
+        const pos = await Position.findById(posId)
             .populate({
                 path: 'followId',
                 select: 'profileId',
@@ -349,18 +371,27 @@ const getPositionById = async (req, res, next) => {
             })
             .lean()
         if (!pos) return res.status(404).json({ success: false, message: "Position not found" })
+        const profileId = pos.followId?.profileId?._id
+        const [yesterdayPrice, livePriceRaw, followCount] = await Promise.all([
+            getYesterdayPrice(pos.symbol),
+            getCurrentPrice(pos.symbol),
+            profileId
+                ? Follow.countDocuments({
+                    profileId,
+                    ...(systemUser ? { userId: { $ne: systemUser._id } } : {})
+                })
+                : 0
+        ])
 
-        const follows = await Follow.find({ profileId: pos.followId?.profileId }).lean()
-        if (follows.length === 0) return res.status(404).json({ success: false, message: "Follow not found" })
-        const filteredFollow = systemUser ? follows.filter(f => f.userId?.toString() !== systemUser?._id?.toString()) : follows
-        const previousClose = await getYesterdayPrice(pos.symbol)
+        if (followCount === 0) console.log('No follow found for position')
+        const livePrice = Number(livePriceRaw) || pos.currentPrice || pos.avgPrice || 0
+        const previousClose = Number(yesterdayPrice) || livePrice || 0
         if (!previousClose) console.log(`No previous close for ${pos.symbol}`)
 
-        const livePrice = (await getCurrentPrice(pos.symbol)) || pos.currentPrice || pos.avgPrice || 0
         const quantity = Number(pos.quantity) || 0
         const avgPrice = Number(pos.avgPrice) || 0
         const todaysChangeAmount = ((livePrice - previousClose) * quantity).toFixed(2)
-        const todaysChangePercent = previousClose > 0 ?  ((livePrice - previousClose) / previousClose * 100).toFixed(2) : 0
+        const todaysChangePercent = previousClose > 0 ? ((livePrice - previousClose) / previousClose * 100).toFixed(2) : 0
 
         const unrealizedPnl = (livePrice - avgPrice) * quantity
 
@@ -377,14 +408,14 @@ const getPositionById = async (req, res, next) => {
             createdAt: pos.createdAt,
             updatedAt: pos.updatedAt,
             follow: {
-                _id: pos.followId._id,
+                _id: pos.followId?._id,
             },
             profile: {
-                _id: pos.followId?.profileId?._id,
+                _id: profileId,
                 name: pos.followId?.profileId?.name,
                 profileImage: pos.followId?.profileId?.profileImage,
 
-                followCount: filteredFollow.length
+                followCount: followCount
             }
         }
 

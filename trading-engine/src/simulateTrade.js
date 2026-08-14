@@ -54,7 +54,8 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
     } else if (side == "Sell") {
         // const position = await Position.findOne({ followId: follow._id, symbol})
         const pnlAtClose = (currentPrice - existingPosition.avgPrice) * quantity;
-        await Trade.updateOne({ followId: follow._id, symbol, status: "open" }, { $set: { status: "closed", pnlAtClose, exitPrice: currentPrice } })
+        const closedDate = new Date()
+        await Trade.updateOne({ followId: follow._id, symbol, status: "open" }, { $set: { status: "closed", pnlAtClose, exitPrice: currentPrice, closedAt: closedDate  } })
 
         // await Trade.create({
         //     symbol,

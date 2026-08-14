@@ -38,6 +38,10 @@ const tradeSchema = new mongoose.Schema({
         enum: ["SLIPPAGE_EXCEEDED", "INSUFFICIENT_FUNDS", null],
         default: null
     },
+    closedAt: {
+        type: Date,
+        default:null
+    },
     exitPrice: {
         type: Number,
         default:null
