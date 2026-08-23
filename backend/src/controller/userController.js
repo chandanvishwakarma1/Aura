@@ -292,6 +292,8 @@ const getRecentTrades = async (req, res, next) => {
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
+// Helper utility to prevent users from breaking regex with characters like ?, *, +
+const escapeRegex = (string) => string.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 const getTrades = async (req, res, next) => {
     try {
         const userId = req.user._id
@@ -299,7 +301,7 @@ const getTrades = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        const {status, symbol} = req.query;
+        const { status, symbol, profile } = req.query;
 
 
         const follows = await Follow.find({ userId })
@@ -310,8 +312,21 @@ const getTrades = async (req, res, next) => {
         if (status && ['open', 'closed', 'skipped'].includes(status)) {
             query.status = status
         }
-        if(symbol){
-            query.symbol = symbol.toUpperCase()
+        if(symbol && symbol.trim() !== ''){
+            const cleanSymbol = escapeRegex(symbol.trim())
+            query.symbol = new RegExp(cleanSymbol, 'i')
+        }
+        if(profile && profile.trim() !== ''){
+            const cleanProfile = escapeRegex(profile.trim())
+            const profileRegex = new RegExp(cleanProfile, 'i')
+
+            const matchingProfile = await Profile.find({ name: profileRegex }).select('_id')
+            const matchingProfileIds = matchingProfile.map(p => p._id)
+
+            if(matchingProfileIds.length === 0){
+                return res.json({ success: true, trades: [], totalTrades: 0, totalPages: 0})
+            }
+            query.profileId = { $in : matchingProfileIds}
         }
 
         const [trades, totalTrades] = await Promise.all([
