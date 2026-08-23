@@ -312,21 +312,21 @@ const getTrades = async (req, res, next) => {
         if (status && ['open', 'closed', 'skipped'].includes(status)) {
             query.status = status
         }
-        if(symbol && symbol.trim() !== ''){
+        if (symbol && symbol.trim() !== '') {
             const cleanSymbol = escapeRegex(symbol.trim())
             query.symbol = new RegExp(cleanSymbol, 'i')
         }
-        if(profile && profile.trim() !== ''){
+        if (profile && profile.trim() !== '') {
             const cleanProfile = escapeRegex(profile.trim())
             const profileRegex = new RegExp(cleanProfile, 'i')
 
             const matchingProfile = await Profile.find({ name: profileRegex }).select('_id')
             const matchingProfileIds = matchingProfile.map(p => p._id)
 
-            if(matchingProfileIds.length === 0){
-                return res.json({ success: true, trades: [], totalTrades: 0, totalPages: 0})
+            if (matchingProfileIds.length === 0) {
+                return res.json({ success: true, trades: [], totalTrades: 0, totalPages: 0 })
             }
-            query.profileId = { $in : matchingProfileIds}
+            query.profileId = { $in: matchingProfileIds }
         }
 
         const [trades, totalTrades] = await Promise.all([
@@ -505,6 +505,79 @@ const getPositionById = async (req, res, next) => {
     }
 }
 
+const getFollowByProfileId = async (req, res, next) => {
+    try {
+        const profileId = req.params.id
+        const userId = req.user._id
+
+        if (!profileId) return res.status(400).json({ success: false, message: 'Profile id is required' })
+
+        const follow = await Follow.findOne({ profileId, userId }).lean()
+        if (!follow) return res.status(400).json({ success: true, message: 'Follow Not found' })
+
+
+        const realizedResult = await Trade.aggregate([
+            { $match: { followId: follow._id, status: 'closed' } },
+            { $group: { _id: "$followId", total: { $sum: "$pnlAtClose" } } }
+        ])
+
+        const realizedPnl = realizedResult.length > 0 ? realizedResult[0].total : 0
+
+        const openPositions = await Position.find({ followId: follow._id }).lean()
+
+        let liveprices = {}
+        if (openPositions.length > 0) {
+            const allSymbols = [...new Set(openPositions.map(p => p.symbol))]
+            liveprices = await fetchBatchMarketPrices(allSymbols)
+        }
+
+        let unrealizedPnl = 0;
+        const positionsWithLivePnl = openPositions.map(pos => {
+            const price = liveprices[pos.symbol] || pos.avgPrice
+            const singlePosPnl = (price - pos.avgPrice) * pos.quantity
+            unrealizedPnl += singlePosPnl
+
+            return {
+                ...pos,
+                currentPrice: price,
+                unrealizedPnl: singlePosPnl.toFixed(2)
+            }
+        })
+
+        const totalPnl = unrealizedPnl + realizedPnl
+        const currentValue = follow.capitalAllocated + totalPnl
+
+        const returnPercent = follow.capitalAllocated > 0
+            ? Number(((totalPnl / follow.capitalAllocated) * 100).toFixed(2))
+            : 0
+
+        const profile = await Profile.findById(profileId).lean()
+
+        return res.json({
+            success: true,
+            follow: {
+                followId: follow._id,
+                profileId: follow.profileId,
+                profileName: profile?.name || null,
+                profileImage: profile?.profileImage || null,
+                shortIntro: profile?.shortIntro || null,
+                description: profile?.description || null,
+                capitalAllocated: follow.capitalAllocated.toFixed(2),
+                currentValue: currentValue.toFixed(2),
+                realizedPnl: realizedPnl.toFixed(2),
+                unrealizedPnl: unrealizedPnl.toFixed(2),
+                totalPnl: totalPnl.toFixed(2),
+                returnPercent: returnPercent.toFixed(2)
+            },
+            positions:positionsWithLivePnl
+        })
+
+    } catch (error) {
+console.log('Error fetching follow by profile Id', error)
+return res.status(500).json({ success: false, message: error.message || "Internal server error"})
+    }
+}
+
 const userController = {
     checkUsername,
     getPortfolioSummary,
@@ -515,6 +588,7 @@ const userController = {
     getTrades,
     getTradeById,
     getPositionById,
+    getFollowByProfileId
 }
 
 export default userController;
