@@ -47,6 +47,7 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
         await Position.create({
             followId: follow._id,
             symbol,
+            side,
             quantity,
             currentPrice,
             avgPrice: currentPrice
