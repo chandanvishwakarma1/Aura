@@ -299,7 +299,7 @@ const getTrades = async (req, res, next) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        const status = req.query.status;
+        const {status, symbol} = req.query;
 
 
         const follows = await Follow.find({ userId })
@@ -309,6 +309,9 @@ const getTrades = async (req, res, next) => {
 
         if (status && ['open', 'closed', 'skipped'].includes(status)) {
             query.status = status
+        }
+        if(symbol){
+            query.symbol = symbol.toUpperCase()
         }
 
         const [trades, totalTrades] = await Promise.all([
@@ -486,6 +489,7 @@ const getPositionById = async (req, res, next) => {
         return res.status(500).json({ success: false, message: error.message || "Internal server error" })
     }
 }
+
 const userController = {
     checkUsername,
     getPortfolioSummary,
@@ -495,7 +499,7 @@ const userController = {
     getRecentTrades,
     getTrades,
     getTradeById,
-    getPositionById
+    getPositionById,
 }
 
 export default userController;
