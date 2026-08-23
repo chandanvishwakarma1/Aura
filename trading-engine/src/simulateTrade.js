@@ -1,15 +1,16 @@
 import Position from "./models/Position.js"
 import Trade from "./models/Trade.js";
 import getCurrentPrice from "./utils/price.js";
+import User from './models/User.js'
 
 const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, quantity) => {
     let tradeExecuted = false;
     const existingPosition = await Position.findOne({ followId: follow._id, symbol });
-    if (existingPosition && side == "Buy") {
+    if (existingPosition && side === "Buy") {
         console.log(`Ignoring buy signal - position already exists for ${symbol}`)
         return tradeExecuted;
     }
-    if (!existingPosition && side == "Sell") {
+    if (!existingPosition && side === "Sell") {
         console.log(`Ignoring sell signal - no active postion for ${symbol}`)
         return tradeExecuted;
     }
@@ -54,8 +55,16 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
     } else if (side == "Sell") {
         // const position = await Position.findOne({ followId: follow._id, symbol})
         const pnlAtClose = (currentPrice - existingPosition.avgPrice) * quantity;
+        // const balance = 
         const closedDate = new Date()
-        await Trade.updateOne({ followId: follow._id, symbol, status: "open" }, { $set: { status: "closed", pnlAtClose, exitPrice: currentPrice, closedAt: closedDate  } })
+        await Trade.updateOne(
+            { followId: follow._id, symbol, status: "open" }, 
+            { $set: { status: "closed", pnlAtClose, exitPrice: currentPrice, closedAt: closedDate  } }
+        ).sort({ createdAt: -1 })
+        await User.updateOne(
+            {_id: follow.userId}, 
+            { $inc: { availableCapital: pnlAtClose}}
+        )
 
         // await Trade.create({
         //     symbol,

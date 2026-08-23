@@ -448,6 +448,8 @@ const getPositionById = async (req, res, next) => {
         const previousClose = Number(yesterdayPrice) || livePrice || 0
         if (!previousClose) console.log(`No previous close for ${pos.symbol}`)
 
+        const side = pos.side
+
         const quantity = Number(pos.quantity) || 0
         const avgPrice = Number(pos.avgPrice) || 0
         const todaysChangeAmount = ((livePrice - previousClose) * quantity).toFixed(2)
@@ -460,6 +462,7 @@ const getPositionById = async (req, res, next) => {
             symbol: pos.symbol,
             quantity: quantity,
             avgPrice: avgPrice,
+            side,
             currentPrice: livePrice,
             previousClose,
             todaysChangeAmount,
