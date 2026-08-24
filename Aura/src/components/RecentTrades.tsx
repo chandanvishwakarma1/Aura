@@ -1,13 +1,14 @@
-import { View, Text, Pressable } from 'react-native'
-import React from 'react'
+import { View, Text, Pressable, ActivityIndicator, Animated } from 'react-native'
+import React, { useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import { formatTime } from '../utils/format'
 import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
+import { Href, useRouter } from 'expo-router'
+import { getNextRun } from '@/utils/getNextRun'
 
 const fetchTrades = async (token: string) => {
-    const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/trades`, {
+    const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/recentTrades`, {
         method: "GET",
         headers: {
             'Authorization': 'Bearer ' + token
@@ -15,6 +16,20 @@ const fetchTrades = async (token: string) => {
     })
     const resData = await res.json()
     return resData
+}
+const Shimmer = ({ className }: { className: string }) => {
+    const opacity = useRef(new Animated.Value(0.4)).current
+    useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+                Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+            ])
+        )
+        loop.start()
+        return () => loop.stop()
+    }, [])
+    return <Animated.View style={{ opacity }} className={className} />
 }
 const RecentTrades = () => {
     const { token } = useAuthStore()
@@ -27,27 +42,56 @@ const RecentTrades = () => {
     if (error) {
         console.log("Error in recentTrades: ", error)
     }
+
+
+    if (isPending) {
+        return (
+            <View className='mt-3 gap-3'>
+                <Shimmer className='w-full h-28 rounded-3xl bg-gray-200' />
+                <Shimmer className='w-full h-28 rounded-3xl bg-gray-200' />
+            </View>
+        )
+    }
     const trades = data?.trades || []
-    const handleOnPress = (id:string,status:string) => {
-        router.navigate({
-            pathname: ('/(trade)/tradeDetail'),
-            params: { id: id, status: status}
-        })
+    if (trades.length === 0) {
+        return (
+            <View>
+                <Text className='text-xl font-semibold'>Recent Trades</Text>
+                <Text className='text-base text-gray-600 font-semibold mt-3'>Your recent trades will appear here.</Text>
+            </View>
+        )
+    }
+    const handleOnPress = (id: string, status: string) => {
+        const path = status === 'open' ? `/(position)/${id}` : `/(trade)/${id}`
+        // console.log(path, status, id)
+        router.navigate(path as Href)
     }
     return (
-        <View className='gap-4 mt-6'>
-            {/* <Text>{data[0]}</Text> */}
+        <View className='gap-4 mt-3'>
+            <View className='flex-row items-center justify-between'>
+                <Text className='text-xl font-semibold'>Recent Trades</Text>
+                {<Pressable
+                    onPress={() => router.navigate('/(trade)/Trade')}
+                    className=' rounded-xl py-1 px-3 active:bg-gray-100'
+                >
+                    <Text className=' font-semibold text-[#476eda]'>See all</Text>
+                </Pressable>}
+            </View>
             {trades && trades.length > 0 && (
                 trades.map((item: any) => {
-                    const totalValue = (item?.price || 0) *( item?.quantity || 0)
+                    const totalValue = (item?.price || 0) * (item?.quantity || 0)
                     const url = item?.profileId?.profileImage
-                    const name = item?.profileId?.name
+                    const name = item?.symbol
                     const isSkipped = item?.status === 'skipped'
+                    // console.log(item.status)
+                    const id = item.status === 'open' ? item.positionId : item._id
+
+
                     return (
-                        <Pressable 
-                        className={`flex-row items-center  bg-zinc-100 gap-3 rounded-3xl p-6 ${isSkipped ? 'opacity-70 border border-dashed' : ''}`} 
-                        key={item._id}
-                        onPress={()=>handleOnPress(item._id, item.staus)}
+                        <Pressable
+                            className={`flex-row items-center  bg-zinc-100 gap-3 rounded-3xl p-6 ${isSkipped ? 'opacity-70 border border-dashed' : ''}`}
+                            key={item._id}
+                            onPress={() => handleOnPress(id, item.status)}
                         >
                             <View className='w-14 h-14 rounded-full overflow-hidden shrink-0'>
                                 <Image
@@ -58,14 +102,14 @@ const RecentTrades = () => {
                             <View className='flex-1 ml-3 pr-2 gap-y-0.6'>
                                 <Text numberOfLines={1} className='text-base font-bold tracking-tight'>{name}</Text>
                                 <Text className='text-xs text-gray-600 font-semibold' numberOfLines={1}>
-                                    {item.side === 'Buy' ? 'Bought' : 'Sold'} 
-                                    {' '}{item.quantity} shares of 
+                                    {item.side === 'Buy' ? 'Bought' : 'Sold'}
+                                    {' '}{(item.quantity).toLocaleString('en-IN')} shares of
                                     <Text className='text-base font-bold text-black'> {item.symbol}</Text>
-                                    </Text>
+                                </Text>
                             </View>
                             <View className='shrink-0 gap-y-1 items-end'>
                                 <Text className='text-sm font-bold text-gray-600 uppercase tracking-wider'>{formatTime(item.createdAt)}</Text>
-                                <Text className='text-sm font-extrabold'>₹{totalValue? totalValue.toLocaleString('en-IN'):'0'}</Text>
+                                <Text className='text-sm font-extrabold'>₹{totalValue ? totalValue.toLocaleString('en-IN') : '0'}</Text>
                             </View>
                         </Pressable>
                     )

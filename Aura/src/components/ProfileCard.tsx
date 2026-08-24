@@ -1,10 +1,10 @@
-import { View, Text, Pressable, ScrollView, useWindowDimensions } from 'react-native'
-import React from 'react'
+import { View, Text, Pressable, useWindowDimensions, ActivityIndicator, Animated } from 'react-native'
+import React, { useEffect, useRef } from 'react'
 import { ApiError } from '@/utils/apiError'
 import { useAuthStore } from '../../store/authStore'
 import formatFollowers from '../utils/format'
 import { Image } from 'expo-image'
-import { useRouter } from 'expo-router'
+import { Href, useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react-native'
 
@@ -24,9 +24,23 @@ const fetchProfilesReturns = async (token: string, id: string) => {
             'Authorization': 'Bearer ' + token
         }
     })
-    if (!res.ok) throw new ApiError('Failed to fetch home')
+    if (!res.ok) throw new ApiError('Failed to fetch profile returns')
     const resData = await res.json()
-    return resData
+    return resData.data
+}
+const Shimmer = ({ className }: { className: string }) => {
+    const opacity = useRef(new Animated.Value(0.4)).current
+    useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+                Animated.timing(opacity, { toValue: 0.4, duration: 700, useNativeDriver: true }),
+            ])
+        )
+        loop.start()
+        return () => loop.stop()
+    }, [])
+    return <Animated.View style={{ opacity }} className={className} />
 }
 
 const ProfileCard = ({ item }: Profile) => {
@@ -36,19 +50,19 @@ const ProfileCard = ({ item }: Profile) => {
 
     const { width: screenWidth } = useWindowDimensions()
     const cardWidth = screenWidth * 0.48
-    const { data: profileReturnsData = [], isLoading: isProfileReturnsLoading, isPending: isProfileReturnsPending, error: profileReturnsErr, refetch: profileRetunsRefetch, isRefetching: isProfileRetunsRefetch } = useQuery({
+    const { data: profileReturnsData = [], error: profileReturnsErr, isPending } = useQuery({
         queryKey: ['index', 'profileCard', id],
         queryFn: () => fetchProfilesReturns(token, id),
         enabled: !!token && !!id,
+        staleTime: 1000 * 60 * 15
     })
-    if (profileReturnsErr) console.log('Error in ProfileCard: ', profileReturnsErr)
-    const handlePress = (id: string) => {
-        router.navigate({
-            pathname: ('/(profile)/profileDetail'),
-            params: { id }
-        })
+
+    const handlePress = () => {
+        const id = item._id
+        router.navigate(`/(profile)/${id}` as Href)
     }
     const latestReturns = profileReturnsData.length > 0 ? profileReturnsData[profileReturnsData.length - 1].value : 0
+    if (latestReturns < 0) return null
     const isPositive = latestReturns >= 0
 
     return (
@@ -56,7 +70,7 @@ const ProfileCard = ({ item }: Profile) => {
             key={item._id}
             className='justify-between bg-gray-100 rounded-3xl p-6 min-w-[160px] active:opacity-70 gap-6'
             style={{ width: cardWidth }}
-            onPress={() => handlePress(item._id)}
+            onPress={handlePress}
         >
             <View className='flex-row justify-between'>
                 <View className='w-14 h-14'>
@@ -66,15 +80,26 @@ const ProfileCard = ({ item }: Profile) => {
             <View>
                 <View>
                     <Text className='font-semibold text-base' numberOfLines={1}>{item.name}</Text>
-                    <Text className='text-sm  text-gray-600'>{formatFollowers(item.followCount)} {item.followCount <= 1 ? 'follower' : 'followers'}</Text>
+                    <Text className='text-sm text-gray-600'>{formatFollowers(item.followCount)} {item.followCount <= 1 ? 'follower' : 'followers'}</Text>
                 </View>
-                <View className={`flex-row items-end mt-3  `}>
-                    <View className='-ml-1'>
-                        {isPositive ? <ArrowUpRight size={34} /> : <ArrowDownRight />}
+                {isPending ? (
+                    <View className='h-[34px] justify-center mt-2'>
+                        <Shimmer className='w-full h-9  rounded-xl bg-gray-300' />
                     </View>
-                    <Text className={`text-3xl font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>{isPositive ? '+' : ''}{latestReturns}% </Text>
-                    <Text className={`text-sm self-end  ${isPositive ? 'text-green-600' : 'text-red-600'}`}>(30d)</Text>
-                </View>
+                ) : (
+                    <View className='flex-row items-end mt-3'>
+                        <View className='-ml-1'>
+                            {latestReturns > 0 && (
+                                <ArrowUpRight size={30} color={'green'} />
+                            )}
+                            {latestReturns < 0 && (
+                                <ArrowDownRight size={30} color={'red'} />
+                            )}
+                        </View>
+                        <Text className={`text-2xl font-bold ${latestReturns > 0 ? 'text-green-600' : latestReturns < 0 ? 'text-red-600' : 'text-gray-600'}`}>{latestReturns > 0 ? '+' : ''}{latestReturns}% </Text>
+                        <Text className={`text-xs  pb-1 font-semibold ${latestReturns > 0 ? 'text-green-600' : latestReturns < 0 ? 'text-red-600' : 'text-gray-600'}`}>(30d)</Text>
+                    </View>
+                )}
             </View>
         </Pressable>
     )
