@@ -37,14 +37,29 @@
           }
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/splash-icon.png",
+          "color": "#fff"
+        }
+      ],
       "expo-secure-store",
       "expo-image",
       "expo-web-browser",
-      "expo-font"
+      "expo-font",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "0400b78b-ba53-43c6-9c22-6915678807f8"
+      }
+    },
+    "owner": "chandan1v"
   }
 }
