@@ -27,6 +27,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
+    deviceToken:{
+        type: String,
+        default: null
+    },
     availableCapital: {
         type: Number,
         default: 10000000

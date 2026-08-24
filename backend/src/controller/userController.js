@@ -6,6 +6,7 @@ import Trade from "../models/Trade.js";
 import UserEquitySnapshot from "../models/UserEquitySnapshots.js";
 import Profile from "../models/Profile.js";
 import computeUserEquity from "../lib/computeUserEquity.js";
+import sendNotification from "../lib/notifications.js";
 
 
 
@@ -569,12 +570,55 @@ const getFollowByProfileId = async (req, res, next) => {
                 totalPnl: totalPnl.toFixed(2),
                 returnPercent: returnPercent.toFixed(2)
             },
-            positions:positionsWithLivePnl
+            positions: positionsWithLivePnl
         })
 
     } catch (error) {
-console.log('Error fetching follow by profile Id', error)
-return res.status(500).json({ success: false, message: error.message || "Internal server error"})
+        console.log('Error fetching follow by profile Id', error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+    }
+}
+
+const postDeviceToken = async (req, res, next) => {
+    try {
+        const { deviceToken } = req.body
+        const userId = req.user._id
+
+        if (!deviceToken) {
+            return res.status(400).json({ success: false, message: "Device token is required" })
+        }
+
+        await User.findByIdAndUpdate(userId, { deviceToken })
+
+        return res.json({ success: true, message: "Device token registered succesfully" })
+    } catch (error) {
+        console.log("Error saving device token: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+
+    }
+}
+
+const postTradeNotification = async (req, res, next) => {
+    try {
+        const { userId, tradeId, symbol, side, quantity, status, pnl, price } = req.body
+
+        if (!userId) return res.status(400).json({ success: false, message: "User id is required" })
+
+        const user = await User.findById(userId).lean()
+        if (!user || !user.deviceToken) return res.status(404).json({ success: false, message: "User or device token not found" })
+
+        const title = `Trade executed: ${side.toUpperCase()} ${symbol}`
+        let body=''
+        if(side  === 'Buy') body = `You bought ${quantity} shares of ${symbol} at ₹${price}`
+        else if(side === 'Sell') body = `You Sold ${quantity} shares of ${symbol} at ₹${price} (P&L: ₹${pnl})`
+        const data = { tradeId: tradeId ? tradeId.toString() : '' }
+
+        await sendNotification(user.deviceToken, title, body, data)
+        return res.json({ success: true, message: "Notification triggered" })
+    } catch (error) {
+        console.log("Error in notification trigger: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+
     }
 }
 
@@ -588,7 +632,9 @@ const userController = {
     getTrades,
     getTradeById,
     getPositionById,
-    getFollowByProfileId
+    getFollowByProfileId,
+    postDeviceToken,
+    postTradeNotification
 }
 
 export default userController;
