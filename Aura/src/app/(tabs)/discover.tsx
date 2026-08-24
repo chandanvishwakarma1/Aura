@@ -1,17 +1,14 @@
-import { View, Text, TextInput, KeyboardAvoidingView, Platform, TouchableWithoutFeedback, Keyboard, FlatList, ActivityIndicator, RefreshControl, useWindowDimensions, Pressable } from 'react-native'
-import React, { useEffect, useState } from 'react'
+import { View, Text, TextInput, KeyboardAvoidingView, Platform, FlatList, ActivityIndicator, RefreshControl, Pressable } from 'react-native'
+import React, { useMemo, useState } from 'react'
 import { Dot, Search, Trophy, UserCheck } from 'lucide-react-native'
 import { useAuthStore } from '../../../store/authStore'
 import { useQuery } from '@tanstack/react-query'
-import Follow from '@/components/Follow'
 import { Image } from 'expo-image'
 import { LineChart } from 'react-native-gifted-charts'
-import generateMockChartData from '../../../genData.js'
-import { useRoute, useRouter } from 'expo-router'
-
+import { Href, useRouter } from 'expo-router'
 
 interface Profile {
-  winRate: number,
+  winRate: number | null,
   followCount: number,
   _id: string,
   profileImage: string,
@@ -19,12 +16,12 @@ interface Profile {
   name: string,
   description: string,
   type: string,
-  instrumentScope: string,
+  instrumentScope: string | string[],
   active: boolean,
 }
 interface ChartData {
-  date:string,
-  value:number
+  date: string,
+  value: number
 }
 
 const fetchProfiles = async (token: string | null): Promise<Profile[]> => {
@@ -37,7 +34,6 @@ const fetchProfiles = async (token: string | null): Promise<Profile[]> => {
   })
   const data = await response.json()
   if (!response.ok) throw new Error(data.message || 'Failed to fetch profiles')
-  // console.log(JSON.stringify(data, null, 2))
   return data
 }
 
@@ -57,72 +53,84 @@ const ProfileItem = ({ item }: { item: Profile }) => {
   const router = useRouter()
   const { token } = useAuthStore()
 
-  const { data: chartData = [] } = useQuery({
-    queryKey: ['profileReturns', 'item._id', '1M'],
-    queryFn: ()=> fetchReturns(item._id, token),
-    enabled: !!item._id,
-    staleTime: 1000*60*15
+  const { data: chartData = [], isLoading: isChartLoading } = useQuery({
+    queryKey: ['profileReturns', item._id, '1M'],
+    queryFn: () => fetchReturns(item._id, token),
+    enabled: !!item._id && !!token,
+    staleTime: 1000 * 60 * 15
   })
 
-  const latestReturns = chartData.length>0? chartData[chartData.length -1].value : 0
+  const hasData = chartData && chartData.length > 0
+
+  const latestReturns = hasData  ? chartData[chartData.length - 1].value : 0
   const isPositive = latestReturns >= 0
 
-  const chartWidth = 74
-  const computedSpacing = chartWidth / (chartData.length - 1)
+  // Compute chart bounds with padding to avoid zero-range rendering issues
+  const values = hasData ? chartData.map(d => d.value) : [0]
+  const rawMax = Math.max(...values, 0)
+  const rawMin = Math.min(...values, 0)
+  const range = rawMax - rawMin
+  const maxValue = range === 0 ? rawMax + 1 : rawMax + range * 0.1
+  const mostNegativeValue = range === 0 ? rawMin - 1 : rawMin - range * 0.1
 
   const handlePress = () => {
-    router.navigate({ pathname: '/(profile)/profileDetail', params: { id: item._id} })
+    const id = item._id
+    router.navigate(`/(profile)/${id}` as Href)
   }
+
   return (
     <Pressable
       onPress={handlePress}
-      style={{ borderStyle: 'solid' }}
-      className='flex-row w-full bg-gray-100 rounded-3xl py-6 px-4'>
+      className='flex-row w-full bg-gray-100 rounded-3xl py-6 px-4 active:opacity-70'
+    >
       <View className='flex-1 justify-center pr-4'>
-
         <View className='flex-row items-center gap-3 overflow-hidden'>
           <View className='w-14 h-14 rounded-full overflow-hidden shrink-0'>
             <Image
-              source={item.profileImage ? { uri: item?.profileImage } : undefined}
+              source={item.profileImage ? { uri: item.profileImage } : undefined}
               style={{ width: '100%', height: '100%', borderRadius: 100 }}
               contentFit='cover'
             />
           </View>
 
           <View className='flex-1 justify-center gap-1 overflow-hidden'>
-            <Text className='text-lg font-aura-bold '>{item.name}</Text>
+            <Text className='text-lg font-aura-bold' numberOfLines={1}>{item.name}</Text>
             <Text numberOfLines={1} className='text-sm text-gray-600 font-aura-regular'>{item.shortIntro}</Text>
           </View>
         </View>
 
-        <View className='flex-row items-start mt-4 pl-4' >
-          <View className=' flex-row items-center justify-center gap-2'>
+        <View className='flex-row items-center mt-4 pl-4'>
+          <View className='flex-row items-center justify-center gap-2'>
             <UserCheck color={'#9ca3af'} size={19} />
-            <Text className='font-semibold text-base'>{item.followCount ? item.followCount : 0}</Text>
+            <Text className='font-semibold text-base'>{item.followCount ?? 0}</Text>
           </View>
-          <View className='items-center justify-center'>
-            <Dot className='text-gray-400' color={'#9ca3af'} />
-          </View>
+          <Dot color={'#9ca3af'} />
           <View className='flex-row items-center justify-center gap-2'>
             <Trophy color={'#9ca3af'} size={17} />
-            <Text className='font-semibold text-base'>{item.winRate ? item.winRate.toFixed(2) : 0}%</Text>
+            <Text className='font-semibold text-base'>{item.winRate != null ? `${item.winRate.toFixed(2)}%` : '—'}</Text>
           </View>
         </View>
       </View>
 
-      <View className='justify-between items-center gap-3 '><View className={`flex-row p-1 rounded-lg ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}>
-        <Text className={`text-sm font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>{isPositive ? '+' : ''}{latestReturns}% </Text>
-        <Text className={`text-sm  ${isPositive ? 'text-green-600' : 'text-red-600'}`}>(30d)</Text>
-      </View>
-          {chartData.length > 0 && (
+      <View className='justify-between items-center gap-3'>
+        <View className={`flex-row p-1 rounded-lg ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}>
+          <Text className={`text-sm font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+            {isPositive ? '+' : ''}{latestReturns.toFixed(2)}%
+          </Text>
+          <Text className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>(30d)</Text>
+        </View>
 
+        {isChartLoading ? (
+          <View className='h-8 w-[84px] items-center justify-center'>
+            <ActivityIndicator size='small' color='#9ca3af' />
+          </View>
+        ) : chartData.length > 0 ? (
           <LineChart
-
             data={chartData}
-            mostNegativeValue={Math.min(...chartData.map(d => d.value), 0)}
-            maxValue={Math.max(...chartData.map(d => d.value), 0)}
+            mostNegativeValue={mostNegativeValue}
+            maxValue={maxValue}
             yAxisLabelWidth={0}
-            height={24}
+            height={30}
             width={84}
             yAxisExtraHeight={0}
             xAxisIndicesHeight={0}
@@ -131,10 +139,9 @@ const ProfileItem = ({ item }: { item: Profile }) => {
             yAxisOffset={0}
             xAxisThickness={0}
             yAxisThickness={0}
-            overflowBottom={0}
-            overflowTop={0}
-            // spacing={computedSpacing}
-            adjustToWidth={true}
+            overflowBottom={4}
+            overflowTop={4}
+            adjustToWidth
             areaChart
             hideAxesAndRules
             hideDataPoints
@@ -142,26 +149,37 @@ const ProfileItem = ({ item }: { item: Profile }) => {
             hideYAxisText
             initialSpacing={0}
             endSpacing={0}
-            thickness={3}
+            thickness={2}
             color={isPositive ? '#4671ED' : '#ef4444'}
-            startFillColor='rgba(33,103,255,0.35)'
+            startFillColor={isPositive ? 'rgba(70,113,237,0.35)' : 'rgba(239,68,68,0.35)'}
             endFillColor='rgba(4,7,14,0)'
             startOpacity={0.4}
             endOpacity={0}
-            isAnimated
             curved
+            disableScroll
           />
+        ) : (
+          <View className='h-8 w-[84px] items-center justify-center'>
+            <Text className='text-xs text-gray-400'>No data</Text>
+          </View>
         )}
-        </View>
+      </View>
     </Pressable>
   )
 }
+
+const Pending = () => {
+  return (
+    <View style={{flex:1, justifyContent: 'center', alignItems: 'center'}}>
+      <ActivityIndicator size={'large'} />
+    </View>
+  )
+}
+
 const Discover = () => {
   const { token } = useAuthStore()
+  const [searchQuery, setSearchQuery] = useState('')
   const [isFocused, setIsFocused] = useState(false)
-  const { width } = useWindowDimensions()
-
-
 
   const { data: profiles = [], isPending, error, refetch, isRefetching } = useQuery({
     queryKey: ['profiles', token],
@@ -169,20 +187,24 @@ const Discover = () => {
     enabled: !!token
   })
 
+  const filteredProfiles = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    if (!query) return profiles
+    return profiles.filter((profile) => {
+      const searchable = [
+        profile.name,
+        profile.shortIntro,
+        profile.description,
+        profile.type,
+        ...(Array.isArray(profile.instrumentScope) ? profile.instrumentScope : [profile.instrumentScope])
+      ].filter(Boolean).join(' ').toLowerCase()
+      return searchable.includes(query)
+    })
+  }, [profiles, searchQuery])
 
   if (isPending) {
-    return (
-      <View className='flex-1 justify-center items-center'>
-        <ActivityIndicator size={'large'} />
-      </View>
-    )
+    return <Pending />
   }
-
-  if (error) {
-    console.log('Error in discover: ', error)
-  }
-
-  // console.log(JSON.stringify(chartData, null ,2))
 
   return (
     <KeyboardAvoidingView
@@ -193,39 +215,65 @@ const Discover = () => {
         <View>
           <View className='mt-4'>
             <Text className='text-3xl font-bold'>Explore Strategies</Text>
-            {/* <Text>Teslt text44230</Text> */}
           </View>
-          <View className={`flex-row border bg-gray-100 rounded-full items-center px-3 mt-3 gap-1 ${isFocused ? ' border-black' : 'border-gray-300'}`}>
+          <View className={`flex-row border bg-gray-100 rounded-full items-center px-3 mt-3 gap-1 ${isFocused ? 'border-black' : 'border-gray-300'}`}>
             <Search />
             <TextInput
-              focusable
-              placeholder='Search trades, ticker, strategies....'
-              className='flex-1  text-base'
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder='Search profiles...'
+              className='flex-1 text-base py-2'
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
+              autoCorrect={false}
+              autoCapitalize='none'
             />
+            {searchQuery.length > 0 && (
+              <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Text className='text-gray-400 text-lg px-1'>✕</Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
-        <FlatList
-          data={profiles}
-          keyExtractor={(item) => item._id}
-          renderItem={({ item }) => <ProfileItem item={item} />}
-          contentContainerStyle={{ paddingBottom: 40, paddingTop: 16 }}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={<Text>No Profiles Yet.</Text>}
-          ItemSeparatorComponent={() => <View className='h-4' />}
-          refreshControl={
-            <RefreshControl
-              refreshing={isRefetching}
-              onRefresh={refetch}
-              tintColor={'#000'}
-              colors={['#000']}
-            />
-          }
-        />
+        {error ? (
+          <View className='flex-1 items-center justify-center gap-4'>
+            <Text className='text-gray-500 text-base'>Failed to load profiles</Text>
+            <Pressable
+              onPress={() => refetch()}
+              className='bg-black px-6 py-3 rounded-2xl'
+            >
+              <Text className='text-white font-semibold'>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredProfiles}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => <ProfileItem item={item} />}
+            contentContainerStyle={{ paddingBottom: 40, paddingTop: 16, flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps='handled'
+            ListEmptyComponent={
+              <View className='flex-1 items-center justify-center pt-20'>
+                <Text className='text-gray-400 text-base'>
+                  {searchQuery ? 'No profiles match your search' : 'No Profiles Yet.'}
+                </Text>
+              </View>
+            }
+            ItemSeparatorComponent={() => <View className='h-4' />}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefetching}
+                onRefresh={refetch}
+                tintColor={'#000'}
+                colors={['#000']}
+              />
+            }
+          />
+        )}
       </View>
-    </KeyboardAvoidingView >
+    </KeyboardAvoidingView>
   )
 }
 

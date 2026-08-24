@@ -1,33 +1,35 @@
-import { View, Text, ActivityIndicator, FlatList, ScrollView, RefreshControl, useWindowDimensions, Pressable } from 'react-native'
-import React, { useEffect, useState } from 'react'
+import { View, Text, ActivityIndicator, ScrollView, RefreshControl, useWindowDimensions, Pressable } from 'react-native'
+import React, { act, useEffect, useMemo, useState } from 'react'
 import { useAuthStore } from '../../../store/authStore'
-import { QueryClient, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '@/utils/apiError'
 import { Image } from 'expo-image'
 import { LineChart } from 'react-native-gifted-charts'
-import { queryClient } from '../_layout'
-import { useRouter } from 'expo-router'
+import { queryClient } from '@/utils/queryClient'
+import { Href, useRouter } from 'expo-router'
+import Arrow from '@/assets/Arrow'
 
 interface Position {
-  _id: string,
-  symbol: string,
-  entryPrice: number,
-  profileImage: string,
-  currentPrice: number,
-  avgPrice:number,
-  unrealizedPnl: number,
+  _id: string
+  symbol: string
+  entryPrice: number
+  profileImage: string
+  currentPrice: number
+  avgPrice: number
+  unrealizedPnl: number
 }
 interface ChartData {
-  date:string,
-  value:number
+  date: string
+  value: number
 }
 
+type TimeRange = '1W' | '1M' | '3M' | '6M' | '1Y' | 'ALL'
 interface Profile {
-  profileId: string,
-  profileImage: string,
-  name: string,
-  capitalAllocated: string,
-  pnl: string,
+  profileId: string
+  profileImage: string
+  name: string
+  capitalAllocated: string
+  pnl: string
   currentValue: string
 }
 
@@ -39,9 +41,9 @@ const fetchPortfolio = async (token: string) => {
     }
   })
   if (!res.ok) throw new ApiError('Failed to fetch portfolio')
-  const resData = await res.json()
-  return resData
+  return await res.json()
 }
+
 const fetchReturns = async (token: string) => {
   const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/returns`, {
     method: "GET",
@@ -50,42 +52,91 @@ const fetchReturns = async (token: string) => {
     }
   })
   if (!res.ok) throw new ApiError('Failed to fetch portfolio')
-  const resData = await res.json()
-  return resData
+  return await res.json()
 }
 
-
 const Portfolio = () => {
-  const { token, user } = useAuthStore()
+  const { token } = useAuthStore()
   const router = useRouter()
+  const [isPointerActive, setIsPointerActive] = useState(false)
+  const [activeValue, setActiveValue] = useState<number | null>(null)
+  const [selectedRange, setSelectedRange] = useState<TimeRange>('1M')
 
-  const { data: portfolioData, isPending: isPortfolioPending, error: portfolioErr, refetch: portfolioRefetch, isRefetching } = useQuery({
-    queryKey: ['index', 'portfolio'],
+  const { data: portfolioData, error: portfolioErr, isRefetching } = useQuery({
+    queryKey: ['portfolio'],
     queryFn: () => fetchPortfolio(token),
     enabled: !!token,
   })
+
   const { width } = useWindowDimensions()
-  const { data: returnsData, isLoading, isPending: isReturnsPending, error: returnsErr, refetch: retunsRefetch, isRefetching: isRetunsRefetch } = useQuery({
-    queryKey: ['index', 'returns'],
+
+  const { data: returnsData, isLoading, isPending: isReturnsPending, error: returnsErr } = useQuery({
+    queryKey: ['portfolio', 'returns'],
     queryFn: () => fetchReturns(token),
     enabled: !!token,
   })
+
   useEffect(() => {
     if (returnsErr) console.log("Error in returns: ", returnsErr)
     if (portfolioErr) console.log("Error in portfolio: ", portfolioErr)
   }, [portfolioErr, returnsErr])
 
-
-  // console.log(returnsData)
-  if (portfolioErr) {
-    console.log(`Error: ${portfolioErr.message}`)
-  }
   const totalReturnPercent = portfolioData?.totalReturnPercent || 0
   const totalEquity = portfolioData?.totalEquity || 0
   const positions = portfolioData?.flattenedPositions || []
   const profiles = portfolioData?.profiles || []
 
   const isPositiveOverall = totalReturnPercent >= 0
+
+  const getProfileHead = (c: number) => {
+    if (c <= 1) return "Profile you followed"
+    return `Profiles you follow`
+  }
+
+  const handleRefetch = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] }),
+      queryClient.invalidateQueries({ queryKey: ['portfolio', 'returns'] })
+    ])
+  }
+
+  const chartPoints = useMemo(() => returnsData?.data ?? [], [returnsData])
+
+  const latestReturns = useMemo(() => {
+    if (chartPoints.length === 0) return 0
+    const lastPoint = chartPoints[chartPoints.length - 1]
+    return typeof lastPoint?.value === 'number' ? lastPoint.value : 0
+  }, [chartPoints])
+
+  const isPositive = latestReturns >= 0
+
+  // Tightened max and min bounds so chart expands vertically to fill available space
+  const { maxValue, minValue } = useMemo(() => {
+    if (chartPoints.length === 0) return { maxValue: 10, minValue: 0 }
+    const values = chartPoints.map((d: ChartData) => d.value)
+    const max = Math.max(...values, 0)
+    const min = Math.min(...values, 0)
+
+    // Reduced ceiling padding multiplier from 1.2 to 1.02 for minimal vertical whitespace
+    const range = Math.abs(max - min) || 1
+    const buffer = range * 0.05
+
+    return {
+      maxValue: max + buffer,
+      minValue: min - buffer,
+    }
+  }, [chartPoints])
+
+  const handleOnPress = (id: string) => {
+    router.navigate(`/(position)/${id}` as Href)
+  }
+
+  const formatter = new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+
+  console.log(chartPoints)
 
   if (isLoading) {
     return (
@@ -95,27 +146,6 @@ const Portfolio = () => {
     )
   }
 
-  const getProfileHead = (c: number) => {
-    if (c <= 1) return "Profile you followed"
-    return `Profiles you follow`
-  }
-  const handleRefetch = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['index', 'portfolio'] }),
-      queryClient.invalidateQueries({ queryKey: ['index', 'returns'] })
-    ])
-  }
-const chartPoints = returnsData?.data || []
-  const latestReturns = chartPoints.length > 0 ? chartPoints[chartPoints.length - 1].value : 0
-  const isPositive = latestReturns >= 0
-
-  const handleOnPress = (id:string) => {
-    router.navigate({
-      pathname: ('/(position)/positionDetail'),
-      params: {id: id}
-    })
-  }
-  
   return (
     <ScrollView
       className='flex-1 mx-6'
@@ -124,8 +154,8 @@ const chartPoints = returnsData?.data || []
         <RefreshControl
           refreshing={isRefetching}
           onRefresh={handleRefetch}
-          colors={['#4A629B']} //android
-          tintColor={'#4A629B'} //ios
+          colors={['#4A629B']}
+          tintColor={'#4A629B'}
         />
       }
     >
@@ -136,109 +166,179 @@ const chartPoints = returnsData?.data || []
       <View className='mt-6 bg-gray-100 rounded-3xl p-6 gap-y-6'>
         <Text className='text-sm font-bold text-gray-400 uppercase'>Total Portfolio Equity</Text>
         <View className='flex-row justify-between mt-3 gap-3 items-end'>
-          <Text className='text-3xl font-aura-bold'>₹ {totalEquity? Number(totalEquity).toLocaleString('en-IN') : '0'}</Text>
-          <View className={`flex-row items-center px-3 py-1 rounded-xl ${isPositiveOverall ? 'bg-green-100' : 'bg-red-100'}`}>
-            <Text className={`font-bold text-sm ${isPositiveOverall ? 'text-green-600' : 'text-red-600'}`}>
-              {isPositiveOverall ? (
-                <Text>+</Text>
-              ) : (
-                <Text>-</Text>
-              )
-              }{totalReturnPercent}% {returnsData?.range ?` (${returnsData?.range}) `: ''}</Text>
-              <Text className='font-bold text-green-600 text-xs align-baseline items-end justify-end'></Text>
+          <Text className='text-3xl font-aura-bold'>₹ {totalEquity ? Number(totalEquity).toLocaleString('en-IN') : '0'}</Text>
+          <View className={`flex-row items-center px-2 py-1 rounded-xl ${totalReturnPercent > 0 ? 'bg-green-100' : totalReturnPercent == 0 ? 'bg-gray-200' : 'bg-red-100'}`}>
+            <Text className={`font-bold text-sm ${totalReturnPercent > 0 ? 'text-green-600' : totalReturnPercent == 0 ? 'text-gray-900' : 'text-red-600'}`}>
+              {isPositiveOverall ? '+' : '-'}{totalReturnPercent}% {returnsData?.range ? ` (${returnsData?.range}) ` : ''}
+            </Text>
           </View>
         </View>
       </View>
-      <View className='bg-gray-100 mt-6 rounded-3xl h-40 items-center justify-center'>
-        {isReturnsPending ? (
-          <ActivityIndicator size={'small'} color={'#000'} />
-        ) : chartPoints.length > 0 ? (
-          <LineChart
-            data={returnsData.data}
-            height={160}
-            width={width}
-            adjustToWidth
-            initialSpacing={0}
-            endSpacing={0}
-            thickness={3}
-            color={isPositive ? '#4671ED' : '#ef4444'}
-            hideRules
-            hideDataPoints
-            areaChart
-            curved
-            startFillColor='rgba(22,163,74,0.75)'
-            // endFillColor='rgba(5,7,14,0)'
-            startOpacity={0.6}
-            endOpacity={0}
-            isAnimated
-            animationDuration={800}
-            animateOnDataChange
-            hideAxesAndRules
-            yAxisLabelWidth={0}
-            yAxisThickness={0}
-            hideYAxisText
-            maxValue={Math.max(...chartPoints.map((d: ChartData) => d.value), 0) * 1.05}
-            mostNegativeValue={Math.min(...chartPoints.map((d: ChartData) => d.value), 0) * 1.05}
-            disableScroll
-            pointerConfig={{
-              pointerStripHeight: 180,
-              pointerStripWidth: 1,
-              pointerStripUptoDataPoint: true,
-              pointerColor: '#fff',
-              pointerStripColor: '#fff',
-              activatePointersOnLongPress: false,
-              pointerVanishDelay: 0,
-              // pointerLabelComponent: (items: ChartData[]) => {
-              //   // Update the "Return" stat card live without rendering a tooltip
-              //   // console.log(items)
-              // },
-            }}
-          />
-        ) : (
-          <Text className='text-center text-gray-400'>No chart data available for this range</Text>
-        )}
-      </View>
+
+      {/* CHART CONTAINER */}
+     {chartPoints.length == 0 ? null : ( <View>
+        <View className='bg-gray-100 mt-6 rounded-3xl pt-5 pb-2 items-start justify-center overflow-hidden'>
+          <Text className={`font-bold text-3xl mb-1 mx-6 ${latestReturns > 0 ? 'text-green-600' : latestReturns === 0 ? 'text-gray-600' : 'text-red-600'}`}>
+            {((isPointerActive ? activeValue ?? latestReturns : latestReturns) >= 0 ? '+' : '')}
+            {Number(isPointerActive ? activeValue ?? latestReturns : latestReturns).toFixed(2)}
+          </Text>
+          <Text className='text-gray-400 text-xs mt-1 mx-6'>Cumulative Return ({selectedRange || 'All'})</Text>
+
+          <View className='w-full items-center justify-center overflow-hidden'>
+            {isReturnsPending ? (
+              <ActivityIndicator size={'small'} color={'#000'} />
+            ) : chartPoints.length > 0 ? (
+              <LineChart
+                key={selectedRange}
+                data={chartPoints}
+                height={100}
+                width={width - 48} // Match screen width minus ScrollView horizontal margins (24px * 2)
+                adjustToWidth
+                initialSpacing={0}
+                endSpacing={0}
+                thickness={3}
+                color={isPositive ? '#4671ED' : '#ef4444'}
+                hideRules
+                hideDataPoints
+                areaChart
+                curved
+                startFillColor='rgba(22,163,74,0.75)'
+                endFillColor='rgba(5,7,14,0)'
+                startOpacity={0.6}
+                endOpacity={0}
+                isAnimated
+                animationDuration={800}
+                animateOnDataChange
+                hideAxesAndRules
+                yAxisLabelWidth={0}
+                yAxisThickness={0}
+                xAxisThickness={0}
+                hideYAxisText
+                maxValue={maxValue}
+                mostNegativeValue={minValue}
+                disableScroll
+                pointerConfig={{
+                  pointerStripHeight: 100,
+                  pointerStripWidth: 1,
+                  // pointerStripUptoDataPoint: true,
+                  pointerColor: '#fff',
+                  pointerStripColor: '#fff',
+                  activatePointersOnLongPress: false,
+                  pointerEvents: 'auto',
+                  pointerVanishDelay: 0,
+                  pointerLabelComponent: (items: any[]) => {
+                    if (items && items.length > 0) {
+                      const activeItem = items[0]
+
+                      if (activeItem && typeof activeItem.value === 'number')
+                        setActiveValue(Number(activeItem.value))
+                      setIsPointerActive(true)
+                    }
+                    return null
+                  },
+                  onPointerLeave: () => setIsPointerActive(false)
+                }}
+              />
+            ) : (
+              <Text className='text-center text-gray-400 py-6'>No chart data available for this range</Text>
+            )}
+          </View>
+        </View>
+        <View className='flex-row justify-between bg-gray-100 p-1 rounded-xl mt-4'>
+          {(['1W', '1M', '3M', '6M', '1Y', 'ALL'] as TimeRange[]).map((r) => {
+            const isActive = selectedRange === r
+            return (
+              <Pressable
+                key={r}
+                onPress={() => {
+                  setSelectedRange(r)
+                  setActiveValue(null)
+                  setIsPointerActive(false)
+                }}
+                className={`flex-1 items-center justify-center py-2 rounded-lg`}
+                style={{
+                  shadowColor: selectedRange === r ? '#fff' : 'transparent',
+                  backgroundColor: selectedRange === r ? 'white' : 'transparent',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: selectedRange === r ? 0.2 : 0,
+                  shadowRadius: 3,
+                  elevation: selectedRange === r ? 2 : 0
+                }}
+                hitSlop={4}
+              >
+                <Text className={`text-xs font-bold ${isActive ? 'text-black' : 'text-gray-400'}`}>{r}</Text>
+              </Pressable>
+            )
+          })}
+        </View>
+      </View>)}
+
+
+      {/* PROFILES */}
       <View className='mt-6'>
-        <Text className='font-semibold text-xl'>{getProfileHead(profiles.length)}</Text>
+        {profiles?.length == 0 ? null : <Text className='font-semibold text-xl'>{getProfileHead(profiles.length)}</Text>}
         <View className='flex-row mt-6 flex-wrap justify-between gap-y-4'>
           {profiles && profiles.length > 0 ? (
             profiles.map((item: Profile, index: number) => {
-              // console.log(item)
-              const { name, profileImage, currentValue } = item
+              const { name, profileImage } = item
               return (
-                <View key={index} className='bg-gray-100 rounded-3xl p-6 gap-y-4' style={{ width: '48%' }}>
-                  <View className='w-12 h-12 g'>
+                <Pressable
+                  key={index}
+                  onPress={() => router.navigate(`/(profile)/${item.profileId}/Metrics`)}
+                  className='bg-gray-100 rounded-3xl p-6 gap-y-4' style={{ width: '48%' }}
+                >
+                  <View className='w-12 h-12'>
                     <Image
                       source={profileImage ? { uri: profileImage } : undefined}
                       style={{ width: '100%', height: '100%', borderRadius: 100 }}
                       contentFit='cover'
                     />
                   </View>
-                  <Text className='font-semibold text-base ' numberOfLines={1}>{name}</Text>
-                  {/* <View>
-                    <Text>₹ {currentValue}</Text>
-                    <Text>
-
-                    </Text>
-                  </View> */}
-                </View>
+                  <Text className='font-semibold text-base' numberOfLines={1}>{name}</Text>
+                </Pressable>
               )
             })
-          ) : (
-            <Text>No Profiles</Text>
-          )}
+          ) : profiles.length == 0
+            ? (
+              <View className='flex-1  items-center justify-center mt-24'>
+                <Text className='text-base font-semibold text-gray-600'>Follow profiles to start copying trades.</Text>
+                <View className='mt-9'>
+                  <Arrow width={120} height={120} />
+                </View>
+              </View>
+
+            ) : (
+              <Text className='text-gray-400'>No Profiles</Text>
+            )}
         </View>
       </View>
-      <View className='mt-6'>
-        <Text className='text-xl font-semibold'>Acitve Positions</Text>
+
+      {/* ACTIVE POSITIONS */}
+      <View className='mt-6 mb-10'>
+        {portfolioData?.follows?.length == 0 ? null : (<View className='flex-row justify-between items-center'>
+          <Text className='text-xl font-semibold'>Active Positions</Text>
+          {positions.length == 0 ? null : (<Pressable
+            onPress={() => router.navigate({ pathname: '/(trade)/Trade', params: { initialStatus: 'open' } })}
+            className='rounded-xl py-1 px-3 active:bg-gray-100'
+          >
+            <Text className='font-semibold text-[#476eda]'>See All</Text>
+          </Pressable>)}
+        </View>)}
 
         {positions && positions.length > 0 ? (
-          positions.map((item: Position) => {
+          positions.map((item: Position, index: number) => {
+            const rawAvgPrice = Number(item?.avgPrice) || 0
+            const rawCurrentPrice = Number(item?.currentPrice) || 0
+            const rawUnrealizedPnl = Number(item?.unrealizedPnl) || 0
+
+            const avgPrice = formatter.format(rawAvgPrice)
+            const currentPrice = formatter.format(rawCurrentPrice)
+            const unrealizedPnl = formatter.format(Math.abs(rawUnrealizedPnl))
             return (
-              <Pressable 
-              key={item.symbol} 
-              className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-gray-100 rounded-3xl p-4'
-              onPress={()=>handleOnPress(item._id)}
+              <Pressable
+                key={index}
+                className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-gray-100 rounded-3xl p-6'
+                onPress={() => handleOnPress(item._id)}
               >
                 <View className='w-14 h-14'>
                   <Image
@@ -247,22 +347,25 @@ const chartPoints = returnsData?.data || []
                     contentFit='cover'
                   />
                 </View>
-                <View className='flex-1 flex-row  justify-between'>
+                <View className='flex-1 flex-row justify-between'>
                   <View>
                     <Text className='font-semibold text-base'>{item.symbol}</Text>
-                    <Text className='text-sm text-gray-600'>₹ {item.avgPrice}</Text>
+                    <Text className='text-sm text-gray-600'>₹{avgPrice}</Text>
                   </View>
                   <View className='items-end'>
-                    <Text className='font-semibold text-base text-end'>₹ {item.currentPrice}</Text>
-                    <Text className={`${item.unrealizedPnl > 0 ? 'text-green-600' : 'text-red-600'} text-sm font-semibold`}>{item.unrealizedPnl > 0 ? '+' : ''}{item.unrealizedPnl}</Text>
-
+                    <Text className='font-semibold text-base text-end'>₹{currentPrice}</Text>
+                    <Text className={`${rawUnrealizedPnl > 0 ? 'text-green-600' : 'text-red-600'} text-sm font-semibold`}>
+                      {rawUnrealizedPnl > 0 ? '+' : ''}{unrealizedPnl}
+                    </Text>
                   </View>
                 </View>
               </Pressable>
             )
           })
+        ) : positions.length == 0 ? (
+          <Text className='mt-3 text-base font-semibold text-gray-600'>Your open positions will appear here.</Text>
         ) : (
-          <Text>No Positions</Text>
+          <Text className='text-gray-400 mt-2'>No Positions</Text>
         )}
       </View>
     </ScrollView>

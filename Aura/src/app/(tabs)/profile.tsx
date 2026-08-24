@@ -1,13 +1,15 @@
-import { View, Text, Switch, ScrollView,RefreshControl } from 'react-native'
+import { View, Text,  ScrollView, RefreshControl, Pressable, Alert } from 'react-native'
 import React, { useEffect, useState } from 'react'
 import { useAuthStore } from '../../../store/authStore'
 import { Image } from 'expo-image'
-import { BadgeInfo, BellRing, SunMoon, WalletMinimal } from 'lucide-react-native'
+import { BadgeInfo, BellRing, LogOut, SunMoon, WalletMinimal } from 'lucide-react-native'
 import { ApiError } from '@/utils/apiError'
 import { useQuery } from '@tanstack/react-query'
+import { queryClient } from '@/utils/queryClient'
+import { Host, Switch } from '@expo/ui'
 
-const fetchUpatedUser = async (token:string, id:string) => {
-  
+const fetchUpatedUser = async (token: string, id: string) => {
+
 
   const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${id}`, {
     method: "GET",
@@ -20,27 +22,27 @@ const fetchUpatedUser = async (token:string, id:string) => {
   return resData.user
 }
 const Profile = () => {
-  const { user: storedUser, token, setUser } = useAuthStore()
+  const { user: storedUser, token, setUser, logOut } = useAuthStore()
   const { data: updatedUser, refetch, isRefetching, error, isLoading } = useQuery({
     queryKey: ['userProfile', storedUser?.id],
     queryFn: () => fetchUpatedUser(token, storedUser?.id),
     enabled: !!storedUser?.id
   })
 
-  if(error){
+  if (error) {
     console.log(`Error: ${error.message}`)
   }
 
-  useEffect(()=>{
-    if(updatedUser){
+  useEffect(() => {
+    if (updatedUser) {
       setUser({
         ...updatedUser,
         id: updatedUser._id
       })
     }
-  },[updatedUser,setUser])
+  }, [updatedUser, setUser])
 
-  const user =  storedUser
+  const user = storedUser
 
 
   const [isNotificationEnabled, setIsNotificationEnabled] = useState(false);
@@ -49,18 +51,38 @@ const Profile = () => {
   const toggleDark = () => setIsDark(previousState => !previousState)
   // console.log(user.id)
   // console.log(updatedUser)
+  const handleOnPress = () => {
+    Alert.alert(
+      "Log Out",
+      "Are you sure you want to log out?",
+      [
+        {
+          text: "Cancel",
+          onPress: () => console.log("Cancel Pressed"),
+          style: "cancel"
+        },
+        {
+          text: "OK", onPress: () => {
+            queryClient.clear()
+            logOut()
+          }
+        }
+      ]
+    )
+
+  }
   return (
-    <ScrollView 
-    className='flex-1 mx-6'
-    showsVerticalScrollIndicator={false}
-    refreshControl={
-      <RefreshControl
-      refreshing={isRefetching}
-      onRefresh={refetch}
-      colors={['#4A629B']} //android
-      tintColor={'#4A629B'} //ios
-      />
-    }>
+    <ScrollView
+      className='flex-1 mx-6'
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefetching}
+          onRefresh={refetch}
+          colors={['#4A629B']} //android
+          tintColor={'#4A629B'} //ios
+        />
+      }>
       <View className='mt-4'>
 
         <Text className='text-3xl font-bold'>Account</Text>
@@ -81,7 +103,7 @@ const Profile = () => {
           <WalletMinimal size={20} />
           <Text className='text-gray-600 text-base font-semibold'>Paper balance</Text>
         </View>
-        <Text className='text-4xl font-aura-bold'>₹ {user?.availableCapital.toLocaleString('en-IN')}</Text>
+        <Text className='text-4xl font-aura-bold'>₹ {user?.availableCapital?.toLocaleString('en-IN')}</Text>
       </View>
 
       <View className='flex-row justify-between items-center mt-6 bg-gray-100 rounded-3xl px-6 py-3'>
@@ -89,12 +111,15 @@ const Profile = () => {
           <BellRing size={20} />
           <Text>Enable notifications</Text>
         </View>
-        <Switch
+        {/* <Switch
           value={isNotificationEnabled}
           onValueChange={toggleSwitch}
           trackColor={{ false: '#E2E4EB', true: '#4A629B' }}
           thumbColor={isNotificationEnabled ? '#fff' : '#6F727B'}
-        />
+        /> */}
+        <Host matchContents seedColor={'#476eda'} colorScheme='light'>
+          <Switch value={isNotificationEnabled} onValueChange={toggleSwitch}  />
+        </Host>
       </View>
 
       <View className='flex-row justify-between items-center mt-6 bg-gray-100 rounded-3xl px-6 py-3'>
@@ -102,12 +127,15 @@ const Profile = () => {
           <SunMoon size={20} />
           <Text>Toggle Dark/Light Mode</Text>
         </View>
-        <Switch
+        {/* <Switch
           value={isDark}
           onValueChange={toggleDark}
           trackColor={{ false: '#E2E4EB', true: '#4A629B' }}
           thumbColor={isDark ? '#fff' : '#6F727B'}
-        />
+        /> */}
+        <Host matchContents seedColor={'#4a629b'} colorScheme='light'>
+          <Switch value={isDark} onValueChange={toggleDark} />
+        </Host>
       </View>
       <View className='flex-row justify-between items-center mt-6 bg-gray-100 rounded-3xl px-6 py-6'>
         <View className='flex-row gap-3 items-center'>
@@ -116,12 +144,22 @@ const Profile = () => {
 
         </View>
       </View>
-      <View className='flex-row justify-between items-center mb-6 mt-6 bg-gray-100 rounded-3xl px-6 py-6'>
+      <View className='flex-row justify-between items-center  mt-6 bg-gray-100 rounded-3xl px-6 py-6'>
         <View className='flex-row gap-3 items-center'>
           <BadgeInfo size={20} />
           <Text>Support</Text>
         </View>
       </View>
+      <Text className='mt-6 text-xl font-semibold'>Danger Zone</Text>
+      <Pressable
+        className='flex-row justify-between items-center mb-6 mt-3 bg-red-600 rounded-3xl px-6 py-6'
+        onPress={handleOnPress}
+      >
+        <View className='flex-row gap-3 items-center'>
+          <LogOut size={20} color={'white'} strokeWidth={3} />
+          <Text className='text-base text-white font-semibold'>Log Out</Text>
+        </View>
+      </Pressable>
     </ScrollView>
   )
 }
