@@ -91,10 +91,10 @@ const postRegister = async (req, res, next) => {
                 fullName: user.fullName,
                 email: user.email,
                 profileImage: user.profileImage,
-                initialCapital: existingUser.initialCapital,
-                availableCapital: existingUser.availableCapital,
-                systemUser: existingUser.systemUser,
-                createdAt: existingUser.createdAt,
+                initialCapital: user.initialCapital,
+                availableCapital: user.availableCapital,
+                systemUser: user.systemUser,
+                createdAt: user.createdAt,
             }
         })
 
