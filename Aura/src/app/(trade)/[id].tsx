@@ -41,13 +41,15 @@ const TradeSkeleton = ({ router, width, isSkipped }: { router: any, width: numbe
                 <View className='w-full h-36 bg-gray-200 animate-pulse rounded-3xl mt-6' />
             </View>
         ) : (
-            <View className='mt-6'>
-                <View className='w-24 h-9 bg-gray-200 animate-pulse rounded-md' />
-                <View className='flex-row  items-center mt-1'>
-                    <View className='w-32 h-6 bg-gray-200 rounded-md animate-pulse' />
+            <View className='flex-row items-end justify-between mt-6'>
+                <View>
+                    <View className='w-24 h-6 bg-gray-200 animate-pulse rounded-md' />
+                    <View className='flex-row  items-center mt-1'>
+                        <View className='w-32 h-6 bg-gray-200 rounded-md animate-pulse' />
+                    </View>
                 </View>
-                <View className='bg-gray-100 mt-6 rounded-3xl h-40 items-center justify-center'>
-                    <View className='w-full h-40 bg-gray-200 animate-pulse rounded-3xl' />
+                <View>
+                    <View className='w-14 h-6 bg-gray-200 animate-pulse rounded-md' />
                 </View>
             </View>
         )}
@@ -55,10 +57,12 @@ const TradeSkeleton = ({ router, width, isSkipped }: { router: any, width: numbe
 
         {!isSkipped && (
             <View className='mt-6'>
-                <Text className='text-xl font-semibold'>Your paper position</Text>
-                <View className='w-full h-40 bg-gray-200 animate-pulse rounded-3xl mt-3' />
+                {/* <Text className='text-xl font-semibold'>Your paper position</Text> */}
+                <View className='w-full h-36 bg-gray-200 animate-pulse rounded-3xl mt-3' />
             </View>
         )}
+        
+                <View className='w-40 h-20 rounded-3xl bg-gray-200 mt-3 animate-pulse' />
 
         <View className='mt-6'>
             <Text className='text-xl font-semibold'>Copy Source</Text>
@@ -66,7 +70,17 @@ const TradeSkeleton = ({ router, width, isSkipped }: { router: any, width: numbe
         </View>
     </View>
 )
-const tradeDetail = () => {
+const getReason = (reason: string) => {
+    switch (reason) {
+        case 'SLIPPAGE_EXCEEDED':
+            return 'Price moved too quickly before execution.'
+        case 'INSUFFICIENT_FUNDS':
+            return 'Your wallet balance was less to execute this trade.'
+        default:
+            return reason ? reason.replace(/_/g, ' ') : 'The trade execution skipped.'
+    }
+}
+const TradeDetail = () => {
     const { id: paramsId, status } = useLocalSearchParams()
     const id = typeof paramsId === 'string' ? paramsId : ''
     const { token } = useAuthStore()
@@ -81,28 +95,47 @@ const tradeDetail = () => {
         console.log('Error in tradeDetail: ', error)
     }
     const trade = data?.trade || {}
+    // const isPending = false
     const isSkipped = isPending ? status === 'skipped' : trade.status === 'skipped'
-
+    const rejectionReason = getReason(trade.rejectionReason)
     if (isPending) {
         return <TradeSkeleton router={router} width={width} isSkipped={isSkipped} />
     }
 
-    const totalValue = (trade?.quantity || 0) * (trade?.currentPrice || 0)
+    const quantity = trade.quantity || 0
+    const avgPrice = trade.price || 0
+    const exitPrice = trade.exitPrice || 0
+    const isTradeOpen = trade.status === 'open'
+    const currentPrice = (trade.currentPrice || avgPrice)
+    const cost = quantity * avgPrice
+    const totalValue = isTradeOpen ? (quantity * currentPrice) : (quantity * exitPrice)
+
     const unrealizedPnl = parseFloat(trade?.unrealizedPnl) || 0
-    const isPositive = unrealizedPnl > 0
-    const colorClass = unrealizedPnl === 0 ? 'text-gray-900' : isPositive ? 'text-green-600' : 'text-red-600'
+    // const absPnl = Math.abs(unrealizedPnl) 
+
+    const Pnl = isTradeOpen && trade.unrealizedPnl !== undefined
+        ? parseFloat(trade.unrealizedPnl)
+        : (quantity * exitPrice) - cost
+
+    const tradeStatus = trade.status || 'open'
+    const displayStatus = tradeStatus.charAt(0).toUpperCase() + tradeStatus.slice(1)
+
+    const isPositive = unrealizedPnl >= 0
+    const colorClass = isSkipped ? 'text-black' : Pnl === 0 ? 'text-gray-900' : Pnl > 0 ? 'text-green-600' : 'text-red-600'
     const chartPoints = data?.returns || []
     const isReturnsPending = data?.isPending || false
     const profileImage = trade?.profile?.profileImage
     const profileName = trade?.profile?.name
     const followCount = trade?.profile?.followCount
 
+    const openDate = new Date(trade.createdAt)
+    const closedDate = new Date(trade?.closedAt || trade?.updatedAt)
+
     // console.log(trade)
 
-    console.log(JSON.stringify(trade, null, 2))
-    const revenue = (trade.quantity || 0) * (trade.exitPrice || 0)
-    const cost = (trade.quantity || 0) * (trade.price || 0)
-    const profit = revenue - cost
+    // console.log(JSON.stringify(trade, null, 2))
+    const absPnl = Math.abs(Number(Pnl))
+    // console.log(absPnl)
     // console.log(formatFollowers(followCount))
     return (
         <View className='flex-1 mx-6 mt-4'>
@@ -115,29 +148,29 @@ const tradeDetail = () => {
                     <ArrowLeft />
                 </Pressable>
                 <View className='flex-1 justify-center items-center'>
-                    <Text className='font-semibold text-xl'>{trade.symbol}</Text>
+                    <Text className='font-semibold text-xl'>{trade.symbol || 'Trade Details'}</Text>
                 </View>
                 <View className='w-9' />
             </View>
 
             <View className='mt-6'>
-                {isSkipped ? (
-                    <View className='bg-red-100 rounded-3xl p-6'>
-                        {/* <Text className='font-semibold text-gray-600'>Profit</Text> */}
-                        <Text className='text-3xl font-aura-bold text-red-600 mt-1'>Trade Skipped</Text>
-                        <Text className='mt-3 text-base'>This trade was aborted automatically due to market slippage</Text>
-                    </View>
-                ) : (
+                <View className='flex-row items-end justify-between'>
                     <View>
-                        <Text className='font-semibold text-gray-600'>Profit</Text>
-                        <Text className='text-3xl font-aura-bold mt-1'>₹ {profit.toFixed(2)}</Text>
+                        <Text className='font-semibold text-gray-600'>{isSkipped ? 'Order' : 'P&L'}</Text>
+                        <Text className={`text-3xl font-aura-bold mt-1 ${colorClass}`}>
+                            {isSkipped ? 'Not Executed' : Pnl >= 0 ? '+' : '-'} {isSkipped ? '' : `₹${absPnl.toFixed(2)}`}
+                        </Text>
                     </View>
-                )}
+                    <View className={`py-1 px-3 rounded-lg ${isSkipped ? 'bg-gray-100' : isTradeOpen ? 'bg-green-100' : 'bg-red-100'}`}>
+                        <Text className={`font-aura-bold ${isSkipped ? 'text-gray-700' : isTradeOpen ? 'text-green-600' : 'text-red-600'}`}>{displayStatus}</Text>
+                    </View>
+                </View>
+
             </View>
 
-            {!isSkipped && (
-                <View className='mt-6'>
-                    <Text className='text-xl font-semibold'>Your paper position</Text>
+            {!isSkipped ? (
+                <View className='mt-3'>
+                    {/* <Text className='text-xl font-semibold'>Your paper position</Text> */}
                     <View className='flex-row items-center justify-between bg-gray-100 p-6 rounded-3xl mt-3'>
                         <View className='gap-4'>
                             <View>
@@ -145,24 +178,58 @@ const tradeDetail = () => {
                                 <Text className='font-aura-bold'>{trade.quantity}</Text>
                             </View>
                             <View>
-                                <Text className='text-sm font-semibold text-gray-600'>Current Value</Text>
+                                <Text className='text-sm font-semibold text-gray-600'>Total Value</Text>
                                 <Text className='font-aura-bold'>₹{totalValue.toFixed(2)}</Text>
                             </View>
                         </View>
                         <View className='gap-4 '>
                             <View className='flex-1 items-end'>
                                 <Text className='text-sm font-semibold text-gray-600'>Avg Cost</Text>
-                                <Text className='font-aura-bold'>{trade.avgPrice}</Text>
+                                <Text className='font-aura-bold'>₹{avgPrice.toFixed(2)}</Text>
                             </View>
                             <View className='flex-1 items-end'>
-                                <Text className='text-sm font-semibold text-gray-600'>Total P&L</Text>
-                                <Text className={` font-aura-bold ${colorClass}`}>{trade.unrealizedPnl}</Text>
+                                <Text className='text-sm font-semibold text-gray-600'>
+                                    {isTradeOpen ? 'Current Price' : 'Exit Price'}
+                                </Text>
+                                <Text className={` font-aura-bold `}>
+                                    ₹{(isTradeOpen ? (currentPrice).toFixed(2) : isSkipped ? 'N/A' : (exitPrice).toFixed(2))}
+                                </Text>
                             </View>
                         </View>
                     </View>
                 </View>
+            ) : (
+                <View className='mt-6 p-6 bg-gray-100 rounded-3xl'>
+                    <Text className='text-sm text-gray-600 font-semibold'>Rejection reason</Text>
+                    <Text className='text-base mt-3 font-semibold'>{rejectionReason}</Text>
+                </View>
             )}
 
+
+            <View className='flex-row mt-3 gap-3'>
+                <View className='p-6 bg-gray-100 rounded-3xl'>
+                    <Text className='text-xs text-gray-600 font-semibold'>Opened At</Text>
+                    <Text className='font-aura-bold'>
+                        {openDate?.toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                        })}
+                    </Text>
+                </View>
+                {tradeStatus === 'closed' && (
+                    <View className='p-6 bg-gray-100 rounded-3xl'>
+                        <Text className='text-xs text-gray-600 font-semibold'>Closed At</Text>
+                        <Text className='font-aura-bold'>
+                            {closedDate?.toLocaleDateString('en-IN', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: 'numeric'
+                            })}
+                        </Text>
+                    </View>
+                )}
+            </View>
 
             <View className='mt-6'>
                 <Text className='text-xl font-semibold'>Copy Source</Text>
@@ -174,8 +241,10 @@ const tradeDetail = () => {
                         />
                     </View>
                     <View>
-                        <Text className='text-base font-semibold '>{profileName}</Text>
-                        <Text className='text-sm font-semibold text-gray-600'>{formatFollowers(followCount)} {followCount <= 1 ? 'follower' : 'followers'}</Text>
+                        <Text className='text-base font-semibold '>{profileName || 'Unkown Profile'}</Text>
+                        <Text className='text-sm font-semibold text-gray-600'>
+                            {isSkipped ? 'Tried to ' : ''}{trade.side === 'Buy' ? isSkipped ? 'buy' : 'Bought' : isSkipped ? 'sell' : 'Sold'} {trade.quantity} shares of {trade.symbol}
+                        </Text>
                     </View>
                 </View>
             </View>
@@ -202,4 +271,4 @@ const tradeDetail = () => {
 //   "updatedAt": "2026-08-11T05:00:09.503Z",
 //   "__v": 0
 // }
-export default tradeDetail
+export default TradeDetail
