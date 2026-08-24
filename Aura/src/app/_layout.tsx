@@ -4,22 +4,33 @@ import { useFonts } from "expo-font";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { AppState, AppStateStatus, Platform, StatusBar, View } from "react-native";
 import { useAuthStore } from '../../store/authStore'
-import { useEffect } from "react";
-import { focusManager, onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query"; 
+import { useEffect, useState } from "react";
+import { focusManager, noop, onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import NetInfo from "@react-native-community/netinfo";
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { LogBox } from "react-native";
 import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-reanimated";
+import { queryClient } from '@/utils/queryClient'
+import * as Notifications from 'expo-notifications'
+import registerForPushNotificationsAsync from "@/utils/notifications";
 
 
 
 SplashScreen.preventAutoHideAsync();
 
-export const queryClient = new QueryClient()
 
 onlineManager.setEventListener((setOnline) => {
   return NetInfo.addEventListener((state) => {
     setOnline(!!state.isConnected)
+  })
+})
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldSetBadge: false,
   })
 })
 
@@ -54,6 +65,9 @@ export default function RootLayout() {
   const router = useRouter()
   const segments = useSegments();
   const insets = useSafeAreaInsets()
+  const [expoPushToken, setExpoPushToken] = useState('')
+  const [channels, setChannels] = useState<Notifications.NotificationChannel[]>([])
+  const [notification, setNotification] = useState<Notifications.Notification | undefined>(undefined)
   const [fontsLoaded, fontsErr] = useFonts({
     'Aura-Bold': require('@/assets/fonts/Coinbase_Sans-Bold.ttf'),
     'Aura-Bold-Italic': require('@/assets/fonts/Coinbase_Sans-Bold_Italic.ttf'),
@@ -74,11 +88,49 @@ export default function RootLayout() {
   }, [])
 
   useEffect(() => {
+    const isSignedIn = user && token
+    if (!isSignedIn) return;
+
+    let isMounted= true
+
+    const setupNotifications = async() => {
+      const pushToken = await registerForPushNotificationsAsync(token)
+      if(pushToken && isMounted){
+        setExpoPushToken(pushToken)
+      }
+      if (Platform.OS === 'android') {
+        const channels = await Notifications.getNotificationChannelsAsync()
+        if(isMounted){
+          setChannels(channels ?? [])
+        }
+      }
+    }
+    setupNotifications()
+
+    const notificationListner = Notifications.addNotificationReceivedListener(notification => {
+      setNotification(notification)
+    })
+
+    const responseListner = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification tapped: ', response)
+      const data = response.notification.request.content.data
+      if (data?.tradeId) router.push(`/(trade)/${data?.tradeId}`)
+    })
+
+    return () => {
+      isMounted=false
+      notificationListner.remove()
+      responseListner.remove()
+    }
+  }, [user, token])
+  useEffect(() => {
     if (isCheckingAuth || !fontsLoaded) return;
 
     if (fontsErr) console.log('Error loading in fonts', fontsErr)
     const inAuthScreen = segments[0] === '(auth)'
     const isSignedIn = user && token
+
+
 
     if (!inAuthScreen && !isSignedIn) router.replace('/(auth)')
     else if (inAuthScreen && isSignedIn) router.replace('/(tabs)')
@@ -90,20 +142,25 @@ export default function RootLayout() {
     return <View />
   }
 
+
+
   return (
-    <GestureHandlerRootView style={{flex: 1}}>
-    <QueryClientProvider client={queryClient}>
-      <AppStateTracker />
-      <ThemeProvider value={myTheme}>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <QueryClientProvider client={queryClient}>
+        <AppStateTracker />
         <SafeAreaProvider style={{ paddingTop: insets.top }}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-          <StatusBar barStyle={'dark-content'} backgroundColor={'#fff'} />
+          <ThemeProvider value={myTheme}>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="(profile)" />
+              <Stack.Screen name="(position)" />
+              <Stack.Screen name="(trade)" />
+            </Stack>
+            <StatusBar barStyle={'dark-content'} backgroundColor={'#fff'} />
+          </ThemeProvider>
         </SafeAreaProvider>
-      </ThemeProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }
