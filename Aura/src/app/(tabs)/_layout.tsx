@@ -1,4 +1,3 @@
-import { Stack } from 'expo-router'
 import { NativeTabs } from 'expo-router/build/native-tabs'
 
 const TabLayout = () => {
