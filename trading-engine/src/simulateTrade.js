@@ -16,7 +16,7 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
     }
 
     const currentPrice = fillPrice || await getCurrentPrice(symbol);
-    if(!currentPrice || isNaN(currentPrice)) {
+    if (!currentPrice || isNaN(currentPrice)) {
         console.log(`Skipping trade for ${symbol} - no valid price available.`)
         return tradeExecuted
     }
@@ -26,6 +26,7 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
     // console.log("risk value:", risk);
     // console.log("currentPrice value:", currentPrice);
     // console.log("==================================");
+    let tradeId = null
 
     if (side == "Buy") {
         if (quantity < 1) {
@@ -33,7 +34,7 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
 
             return tradeExecuted;
         }
-        await Trade.create({
+        const newTrade = await Trade.create({
             symbol,
             followId: follow._id,
             profileId: follow.profileId,
@@ -43,6 +44,7 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
             price: currentPrice,
             triggerRefId: intentId
         })
+        tradeId = newTrade._id
 
         await Position.create({
             followId: follow._id,
@@ -58,13 +60,15 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
         const pnlAtClose = (currentPrice - existingPosition.avgPrice) * quantity;
         // const balance = 
         const closedDate = new Date()
-        await Trade.updateOne(
-            { followId: follow._id, symbol, status: "open" }, 
-            { $set: { status: "closed", pnlAtClose, exitPrice: currentPrice, closedAt: closedDate  } }
+        const updatedTrade = await Trade.updateOne(
+            { followId: follow._id, symbol, status: "open" },
+            { $set: { status: "closed", pnlAtClose, exitPrice: currentPrice, closedAt: closedDate } },
+            { new : true}
         ).sort({ createdAt: -1 })
+        tradeId = updatedTrade ? updatedTrade._id : null
         await User.updateOne(
-            {_id: follow.userId}, 
-            { $inc: { availableCapital: pnlAtClose}}
+            { _id: follow.userId },
+            { $inc: { availableCapital: pnlAtClose } }
         )
 
         // await Trade.create({
@@ -80,7 +84,36 @@ const simulateTrade = async (follow, symbol, side, risk, fillPrice, intentId, qu
         await Position.deleteOne({ followId: follow._id, symbol })
         tradeExecuted = true;
     }
+    if(tradeExecuted && follow.userId){
+        // Fire the notification as an awaited background task so it is not lost
+        // if the process exits, but never block trade execution on it.
+        const notifyPayload = {
+            userId: follow.userId,
+            tradeId: tradeId ? tradeId.toString() : '',
+            symbol,
+            side,
+            quantity,
+            price: currentPrice,
+            pnl: side === 'Sell' ? Number(pnlAtClose).toFixed(2) : undefined,
+            status: side === 'Buy' ? "placed" : "closed"
+        }
+        const notifyPromise = fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/notify/trade`, {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+                'x-internal-key': process.env.INTERNAL_KEY || ''
+            },
+            body: JSON.stringify(notifyPayload)
+        })
+            .then(res => res.ok
+                ? console.log(`Trade notification triggered for ${follow.userId} on ${symbol}.`)
+                : console.log(`Notify endpoint responded with status ${res.status} for ${symbol}.`)
+            )
+            .catch(error => console.log('Failed to trigger trade notification: ', error))
 
+        // Keep the reference allowed to run in background; handle any rejection.
+        void notifyPromise
+    }
     return tradeExecuted;
 }
 
