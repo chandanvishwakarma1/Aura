@@ -3,10 +3,10 @@ const { withNativeWind } = require('nativewind/metro');
  
 const config = getDefaultConfig(__dirname)
 
-const {tranformer , resolver } = config;
+const {transformer , resolver } = config;
 
 config.transformer = {
-    ...tranformer,
+    ...transformer,
     babelTransformerPath: require.resolve('react-native-svg-transformer'),
 };
 
