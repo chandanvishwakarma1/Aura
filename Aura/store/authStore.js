@@ -2,6 +2,13 @@ import { create } from 'zustand'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as SecureStore from 'expo-secure-store'
 
+//normalize if id to _id
+const normalizeUser = (user) => {
+    if (!user) return null
+    return { ...user, _id: user._id || user.id }
+}
+
+
 
 export const useAuthStore = create((set) => ({
     user: null,
@@ -33,12 +40,12 @@ export const useAuthStore = create((set) => ({
             const data = await response.json()
             if (!response.ok) throw new Error(data.message || 'Something went wrong')
 
-            await AsyncStorage.setItem("user", JSON.stringify(data.user))
+            await AsyncStorage.setItem("user", JSON.stringify(normalizeUser(data.user)))
             await SecureStore.setItemAsync("token", data.token)
 
             set({
                 token: data.token,
-                user: data.user,
+                user: normalizeUser(data.user),
                 isLoading: false
             })
 
@@ -72,10 +79,10 @@ export const useAuthStore = create((set) => ({
             const data = await reponse.json()
             if(!reponse.ok) throw new Error( data.message || 'Something went wrong')
 
-            await AsyncStorage.setItem("user", JSON.stringify(data.user))
+            await AsyncStorage.setItem("user", JSON.stringify(normalizeUser(data.user)))
             await SecureStore.setItemAsync("token", data.token)
 
-            set ({ token: data.token, user: data.user, isLoading: false })
+            set ({ token: data.token, user: normalizeUser(data.user), isLoading: false })
 
             return ({ success: true, message: "Logged in successfully" })
         } catch (error) {
@@ -97,7 +104,7 @@ export const useAuthStore = create((set) => ({
         try {
             const token = await SecureStore.getItemAsync("token")
             const userString = await AsyncStorage.getItem("user")
-            const user = userString ? JSON.parse(userString) : null
+            const user = userString ? normalizeUser(JSON.parse(userString)) : null
 
             set({ token, user})
         } catch(error) {
