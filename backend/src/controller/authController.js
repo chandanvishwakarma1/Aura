@@ -86,7 +86,7 @@ const postRegister = async (req, res, next) => {
         res.status(201).json({
             token,
             user: {
-                id: user._id,
+                _id: user._id,
                 username: user.username,
                 fullName: user.fullName,
                 email: user.email,
@@ -189,7 +189,7 @@ const postLogin = async (req, res, next) => {
         res.status(200).json({
             token,
             user: {
-                id: existingUser._id,
+                _id: existingUser._id,
                 username: existingUser.username,
                 fullName: existingUser.fullName,
                 email: existingUser.email,
