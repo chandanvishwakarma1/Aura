@@ -8,7 +8,10 @@ export const useAuthStore = create((set) => ({
     token: null,
     isLoading: false,
     isCheckingAuth: true,
-    setUser: (updatedUser) => set({ user: updatedUser}),
+    setUser: (updatedUser) => {
+        set({ user: updatedUser })
+        if (updatedUser) AsyncStorage.setItem("user", JSON.stringify(updatedUser)).catch(e => console.log("Error persisting user", e))
+    },
 
     register: async (otp, username, email, password, fullName) => {
         set({ isLoading: true })
