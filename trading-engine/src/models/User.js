@@ -29,7 +29,11 @@ const userSchema = new mongoose.Schema({
     },
     deviceToken:{
         type: String,
-        default:null
+        default: null
+    },
+    notificationEnabled: {
+        type: Boolean,
+        default: true
     },
     availableCapital: {
         type: Number,

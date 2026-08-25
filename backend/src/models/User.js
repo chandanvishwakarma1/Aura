@@ -31,6 +31,10 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    notificationEnabled: {
+        type: Boolean,
+        default: true
+    },
     availableCapital: {
         type: Number,
         default: 10000000

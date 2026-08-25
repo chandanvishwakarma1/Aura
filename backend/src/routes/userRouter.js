@@ -6,6 +6,7 @@ const router = express.Router()
 
 router.post('/checkUsername', userController.checkUsername)
 router.post('/deviceToken', protectedRoute, userController.postDeviceToken)
+router.post('/notificationPref', protectedRoute, userController.postNotificationPref)
 router.post('/notify/trade', internalRoute, userController.postTradeNotification)
 
 router.get('/portfolio', protectedRoute,userController.getPortfolioSummary )

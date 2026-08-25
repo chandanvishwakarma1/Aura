@@ -588,7 +588,7 @@ const postDeviceToken = async (req, res, next) => {
             return res.status(400).json({ success: false, message: "Device token is required" })
         }
 
-        await User.findByIdAndUpdate(userId, { deviceToken })
+        await User.findByIdAndUpdate(userId, { deviceToken, notificationEnabled:true })
 
         return res.json({ success: true, message: "Device token registered succesfully" })
     } catch (error) {
@@ -607,6 +607,10 @@ const postTradeNotification = async (req, res, next) => {
         const user = await User.findById(userId).lean()
         if (!user || !user.deviceToken) return res.status(404).json({ success: false, message: "User or device token not found" })
 
+        if (user.notificationEnabled === false) {
+            return res.json({ success: true, message: "Notifications disabled for this user - skipped" })
+        }
+
         const title = `Trade executed: ${side.toUpperCase()} ${symbol}`
         let body=''
         if(side  === 'Buy') body = `You bought ${quantity} shares of ${symbol} at ₹${price}`
@@ -622,6 +626,29 @@ const postTradeNotification = async (req, res, next) => {
     }
 }
 
+const postNotificationPref = async (req, res, next) => {
+    try {
+        const { enabled } = req.body
+        const userId = req.user._id
+
+        if (typeof enabled !== 'boolean') {
+            return res.status(400).json({ success: false, message: "enabled boolean is required" })
+        }
+
+        // When the user disables notifications, also drop the device token so
+        // no in-flight server sends can reach the device. On re-enable the app
+        // re-registers a fresh token via /user/deviceToken.
+        const update = enabled ? { notificationEnabled: true } : { notificationEnabled: false, deviceToken: null }
+
+        await User.findByIdAndUpdate(userId, update)
+
+        return res.json({ success: true, notificationEnabled: enabled })
+    } catch (error) {
+        console.log("Error updating notification preference: ", error)
+        return res.status(500).json({ success: false, message: error.message || "Internal server error" })
+    }
+}
+
 const userController = {
     checkUsername,
     getPortfolioSummary,
@@ -634,6 +661,7 @@ const userController = {
     getPositionById,
     getFollowByProfileId,
     postDeviceToken,
+    postNotificationPref,
     postTradeNotification
 }
 
