@@ -9,6 +9,8 @@ import { useRouter } from 'expo-router'
 import ProfileCard from '@/components/ProfileCard'
 import RecentTrades from '@/components/RecentTrades'
 import Arrow from '@/assets/Arrow.svg'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 const fetchPortfolio = async (token: string) => {
   const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/portfolio`, {
@@ -63,20 +65,22 @@ const Shimmer = ({ className }: { className: string }) => {
 
 const HomeSkeleton = () => (
   <View className=''>
-    <Shimmer className='w-full h-[144px] bg-gray-200 rounded-3xl mt-6' />
+    <Shimmer className='w-full h-[144px] bg-aura-surface-elevated dark:bg-aura-surface-elevated-dark rounded-3xl mt-6' />
   </View>
 )
 
 const ProfileSkeleton = () => (
   <View className='mt-3 gap-3 flex-row'>
-    <Shimmer className='w-[56%] h-56 bg-gray-200 rounded-3xl' />
-    <Shimmer className='w-[100%] h-56 bg-gray-200 rounded-3xl' />
+    <Shimmer className='w-[56%] h-56 bg-aura-surface-elevated dark:bg-aura-surface-elevated-dark rounded-3xl' />
+    <Shimmer className='w-[100%] h-56 bg-aura-surface-elevated dark:bg-aura-surface-elevated-dark rounded-3xl' />
   </View>
 )
 
 const Index = () => {
   const { token } = useAuthStore()
   const router = useRouter()
+  const { activeTheme } = useTheme()
+  const isDark = activeTheme === 'dark'
 
   const { data: portfolioData, error: portfolioErr, isRefetching: isPortfolioRefetching } = useQuery({
     queryKey: ['index', 'portfolio'],
@@ -123,33 +127,33 @@ const Index = () => {
         <RefreshControl
           refreshing={isAnyQueryRefetching}
           onRefresh={handleRefetch}
-          colors={['#4A629B']} //android
-          tintColor={'#4A629B'} //ios
+          colors={[isDark ? Colors.light.primary : Colors.dark.primary]} //android
+          tintColor={isDark ? Colors.light.primary : Colors.dark.primary} //ios
         />
       }
     >
       <View className='mt-4'>
-        <Text className='text-3xl font-bold'>Aura</Text>
+        <Text className='text-3xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark'>Aura</Text>
       </View>
 
       {isHomePending ? (
         <HomeSkeleton />
       ) : (
-        <View className='mt-6 bg-gray-100 rounded-3xl p-6'>
-          <Text className='text-sm font-bold text-gray-400 uppercase'>Total Portfolio Equity</Text>
+        <View className='mt-6 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6'>
+          <Text className='text-sm font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark uppercase'>Total Portfolio Equity</Text>
 
           <View className='mt-9'>
             {homeData && typeof todayAmountChange === 'number' && (
               <View className='flex-row items-center gap-1 mt-1'>
                 {todayAmountChange > 0 && (
-                  <ArrowUpRight size={16} color={'green'} strokeWidth={3} />
+                  <ArrowUpRight size={16} color={isDark ? Colors.dark.positive : Colors.light.positive} strokeWidth={3} />
                 )}
                 {todayAmountChange < 0 && (
-                  <ArrowDownRight size={16} color={'red'} strokeWidth={3} />
+                  <ArrowDownRight size={16} color={isDark ? Colors.dark.negative : Colors.light.negative} strokeWidth={3} />
                 )}
                 <View className='flex-row flex-1 justify-between'>
                   <Text
-                    className={`text-sm font-semibold ${todayAmountChange > 0 ? 'text-green-600' : todayAmountChange < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                    className={`text-sm font-semibold ${todayAmountChange > 0 ? 'text-aura-positive' : todayAmountChange < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>
                     {todayAmountChange > 0 ? '+' : ''} ₹{todayAmountChange === 0 ? '0.00' : todayAmountChange.toFixed(2)} (today)
                   </Text>
                 </View>
@@ -158,14 +162,14 @@ const Index = () => {
           </View>
 
           <View className='flex-row justify-between gap-3 items-end'>
-            <Text className='text-3xl font-aura-bold'>
+            <Text className='text-3xl font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>
               ₹ {totalEquity ? Number(totalEquity).toLocaleString('en-IN') : '0'}
             </Text>
             {typeof todayPercentChange === 'number' && (
               <View
-                className={`px-3 py-1 ${todayPercentChange > 0 ? 'bg-green-100' : todayPercentChange < 0 ? 'bg-red-100' : 'bg-gray-200'} rounded-xl`}>
+                className={`px-3 py-1 ${todayPercentChange > 0 ? 'bg-aura-positive/10' : todayPercentChange < 0 ? 'bg-aura-negative/10' : 'bg-aura-bg-alt dark:bg-aura-bg-alt-dark'} rounded-xl`}>
                 <Text
-                  className={`font-bold ${todayPercentChange > 0 ? 'text-green-600' : todayPercentChange < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                  className={`font-bold ${todayPercentChange > 0 ? 'text-aura-positive' : todayPercentChange < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>
                   {todayPercentChange > 0 ? '+' : ''}{todayPercentChange}%
                 </Text>
               </View>
@@ -175,12 +179,16 @@ const Index = () => {
       )}
 
       <View className='flex-row justify-between items-center mt-6'>
-        <Text className='text-xl font-semibold'>Top Profiles</Text>
+        <Text className='text-xl font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>Top Profiles</Text>
         <Pressable
           onPress={() => router.navigate('/(tabs)/discover')}
-          className=' rounded-xl py-1 px-3 active:bg-gray-100'
+          className=' rounded-xl py-1 px-3 '
         >
-          <Text className=' font-semibold text-[#476eda]'>See all</Text>
+          {({ pressed }) => (
+            <View className={`rounded-xl py-1 px-3 ${pressed ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-transparent'}`}>
+              <Text className='font-semibold text-aura-primary'>See all</Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -202,19 +210,19 @@ const Index = () => {
           )}
         </ScrollView>
       )}
-  
+
       {portfolioData?.follows.length == 0
         ? (
           <View className='flex-1  items-center justify-center mt-24'>
-            <Text className='text-base font-semibold text-gray-600'>Follow profiles to start copying trades.</Text>
+            <Text className='text-base font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Follow profiles to start copying trades.</Text>
             <View className='mt-9'>
-              <Arrow width={120} height={120}  />
+              <Arrow width={120} height={120} color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
             </View>
           </View>
-        ) :  (
-        <View className='mt-6'>
-          <RecentTrades />
-        </View>)}
+        ) : (
+          <View className='mt-6'>
+            <RecentTrades />
+          </View>)}
     </ScrollView>
   )
 }

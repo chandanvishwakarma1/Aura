@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Image } from 'expo-image'
 import { LineChart } from 'react-native-gifted-charts'
 import { Href, useRouter } from 'expo-router'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 interface Profile {
   winRate: number | null,
@@ -53,6 +55,8 @@ const ProfileItem = ({ item }: { item: Profile }) => {
   const router = useRouter()
   const { token } = useAuthStore()
 
+  const { activeTheme } = useTheme()
+  const isDark = activeTheme === 'dark'
   const { data: chartData = [], isLoading: isChartLoading } = useQuery({
     queryKey: ['profileReturns', item._id, '1M'],
     queryFn: () => fetchReturns(item._id, token),
@@ -62,7 +66,7 @@ const ProfileItem = ({ item }: { item: Profile }) => {
 
   const hasData = chartData && chartData.length > 0
 
-  const latestReturns = hasData  ? chartData[chartData.length - 1].value : 0
+  const latestReturns = hasData ? chartData[chartData.length - 1].value : 0
   const isPositive = latestReturns >= 0
 
   // Compute chart bounds with padding to avoid zero-range rendering issues
@@ -78,10 +82,11 @@ const ProfileItem = ({ item }: { item: Profile }) => {
     router.navigate(`/(profile)/${id}` as Href)
   }
 
+
   return (
     <Pressable
       onPress={handlePress}
-      className='flex-row w-full bg-gray-100 rounded-3xl py-6 px-4 active:opacity-70'
+      className='flex-row w-full bg-aura-surface dark:bg-aura-surface-dark rounded-3xl py-6 px-4 active:opacity-70'
     >
       <View className='flex-1 justify-center pr-4'>
         <View className='flex-row items-center gap-3 overflow-hidden'>
@@ -94,35 +99,35 @@ const ProfileItem = ({ item }: { item: Profile }) => {
           </View>
 
           <View className='flex-1 justify-center gap-1 overflow-hidden'>
-            <Text className='text-lg font-aura-bold' numberOfLines={1}>{item.name}</Text>
-            <Text numberOfLines={1} className='text-sm text-gray-600 font-aura-regular'>{item.shortIntro}</Text>
+            <Text className='text-lg font-aura-bold  text-aura-text-primary dark:text-aura-text-primary-dark' numberOfLines={1}>{item.name}</Text>
+            <Text numberOfLines={1} className='text-sm text-aura-text-secondary dark:text-aura-text-secondary-dark font-aura-regular'>{item.shortIntro}</Text>
           </View>
         </View>
 
         <View className='flex-row items-center mt-4 pl-4'>
           <View className='flex-row items-center justify-center gap-2'>
-            <UserCheck color={'#9ca3af'} size={19} />
-            <Text className='font-semibold text-base'>{item.followCount ?? 0}</Text>
+            <UserCheck color={isDark ? Colors.dark.textMuted : Colors.light.textMuted} size={19} />
+            <Text className='font-semibold text-base text-aura-text-secondary dark:text-aura-text-secondary-dark'>{item.followCount ?? 0}</Text>
           </View>
           <Dot color={'#9ca3af'} />
           <View className='flex-row items-center justify-center gap-2'>
-            <Trophy color={'#9ca3af'} size={17} />
-            <Text className='font-semibold text-base'>{item.winRate != null ? `${item.winRate.toFixed(2)}%` : '—'}</Text>
+            <Trophy color={isDark ? Colors.dark.textMuted : Colors.light.textMuted} size={17} />
+            <Text className='font-semibold text-base text-aura-text-secondary dark:text-aura-text-secondary-dark'>{item.winRate != null ? `${item.winRate.toFixed(2)}%` : '—'}</Text>
           </View>
         </View>
       </View>
 
       <View className='justify-between items-center gap-3'>
-        <View className={`flex-row p-1 rounded-lg ${isPositive ? 'bg-green-100' : 'bg-red-100'}`}>
-          <Text className={`text-sm font-bold ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+        <View className={`flex-row p-1 rounded-lg ${isPositive ? 'bg-aura-positive/10' : 'bg-aura-negative/10'}`}>
+          <Text className={`text-sm font-bold ${isPositive ? 'text-aura-positive' : 'text-aura-negative'}`}>
             {isPositive ? '+' : ''}{latestReturns.toFixed(2)}%
           </Text>
-          <Text className={`text-sm ${isPositive ? 'text-green-600' : 'text-red-600'}`}>(30d)</Text>
+          <Text className={`text-sm ${isPositive ? 'text-aura-positive' : 'text-aura-negative'}`}>(30d)</Text>
         </View>
 
         {isChartLoading ? (
-          <View className='h-8 w-[84px] items-center justify-center'>
-            <ActivityIndicator size='small' color='#9ca3af' />
+          <View className='h-8 w-[84px] items-center justify-center bg-aura-bg dark:bg-aura-bg-dark'>
+            <ActivityIndicator size='small' color={isDark ? Colors.dark.textPrimary : Colors.light.textPrimary} />
           </View>
         ) : chartData.length > 0 ? (
           <LineChart
@@ -150,9 +155,9 @@ const ProfileItem = ({ item }: { item: Profile }) => {
             initialSpacing={0}
             endSpacing={0}
             thickness={2}
-            color={isPositive ? '#4671ED' : '#ef4444'}
-            startFillColor={isPositive ? 'rgba(70,113,237,0.35)' : 'rgba(239,68,68,0.35)'}
-            endFillColor='rgba(4,7,14,0)'
+            color={isPositive ? Colors.dark.positive : Colors.light.negative}
+            startFillColor={isPositive ? 'rgba(5, 177, 105, 0.35)' : 'rgba(207, 32, 47, 0.35)'}
+            endFillColor={isPositive ? 'rgba(5, 177, 105, 0)' : 'rgba(207, 32, 47, 0)'}
             startOpacity={0.4}
             endOpacity={0}
             curved
@@ -160,7 +165,7 @@ const ProfileItem = ({ item }: { item: Profile }) => {
           />
         ) : (
           <View className='h-8 w-[84px] items-center justify-center'>
-            <Text className='text-xs text-gray-400'>No data</Text>
+            <Text className='text-xs text-aura-text-secondary dark:text-aura-text-secondary-dark'>No data</Text>
           </View>
         )}
       </View>
@@ -169,9 +174,24 @@ const ProfileItem = ({ item }: { item: Profile }) => {
 }
 
 const Pending = () => {
+
+  const { activeTheme } = useTheme()
+  const isDark = activeTheme === 'dark'
   return (
-    <View style={{flex:1, justifyContent: 'center', alignItems: 'center'}}>
-      <ActivityIndicator size={'large'} />
+    <View
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: isDark ? Colors.dark.background : Colors.light.background,
+      }}
+    >
+      <ActivityIndicator size={'large'} color={isDark ? Colors.light.textPrimary : Colors.dark.textPrimary} />
     </View>
   )
 }
@@ -180,6 +200,8 @@ const Discover = () => {
   const { token } = useAuthStore()
   const [searchQuery, setSearchQuery] = useState('')
   const [isFocused, setIsFocused] = useState(false)
+  const { activeTheme } = useTheme()
+  const isDark = activeTheme === 'dark'
 
   const { data: profiles = [], isPending, error, refetch, isRefetching } = useQuery({
     queryKey: ['profiles', token],
@@ -214,15 +236,16 @@ const Discover = () => {
       <View className='flex-1 mx-6'>
         <View>
           <View className='mt-4'>
-            <Text className='text-3xl font-bold'>Explore Strategies</Text>
+            <Text className='text-3xl font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Explore Strategies</Text>
           </View>
-          <View className={`flex-row border bg-gray-100 rounded-full items-center px-3 mt-3 gap-1 ${isFocused ? 'border-black' : 'border-gray-300'}`}>
-            <Search />
+          <View className={`flex-row border bg-aura-surface dark:bg-aura-surface-dark rounded-full items-center px-3 mt-3 gap-1 ${isFocused ? 'border-aura-primary dark:border-aura-primary' : ''}`}>
+            <Search color={isDark ? Colors.dark.textPrimary : Colors.light.textPrimary} />
             <TextInput
               value={searchQuery}
               onChangeText={setSearchQuery}
               placeholder='Search profiles...'
-              className='flex-1 text-base py-2'
+              placeholderTextColor={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary}
+              className='flex-1 text-base py-2 text-aura-text-primary dark:text-aura-text-primary-dark'
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               autoCorrect={false}
@@ -230,7 +253,7 @@ const Discover = () => {
             />
             {searchQuery.length > 0 && (
               <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                <Text className='text-gray-400 text-lg px-1'>✕</Text>
+                <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark text-lg px-1'>✕</Text>
               </Pressable>
             )}
           </View>
@@ -238,12 +261,12 @@ const Discover = () => {
 
         {error ? (
           <View className='flex-1 items-center justify-center gap-4'>
-            <Text className='text-gray-500 text-base'>Failed to load profiles</Text>
+            <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark text-base'>Failed to load profiles</Text>
             <Pressable
               onPress={() => refetch()}
-              className='bg-black px-6 py-3 rounded-2xl'
+              className='bg-aura-bg-dark dark:bg-aura-bg px-6 py-3 rounded-2xl'
             >
-              <Text className='text-white font-semibold'>Retry</Text>
+              <Text className='text-aura-text-primary-dark dark:text-aura-text-primary font-semibold'>Retry</Text>
             </Pressable>
           </View>
         ) : (
@@ -256,7 +279,7 @@ const Discover = () => {
             keyboardShouldPersistTaps='handled'
             ListEmptyComponent={
               <View className='flex-1 items-center justify-center pt-20'>
-                <Text className='text-gray-400 text-base'>
+                <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark text-base'>
                   {searchQuery ? 'No profiles match your search' : 'No Profiles Yet.'}
                 </Text>
               </View>
@@ -266,8 +289,8 @@ const Discover = () => {
               <RefreshControl
                 refreshing={isRefetching}
                 onRefresh={refetch}
-                tintColor={'#000'}
-                colors={['#000']}
+                tintColor={isDark ? Colors.light.primary : Colors.dark.primary}
+                colors={[isDark ? Colors.light.primary : Colors.dark.primary]}
               />
             }
           />

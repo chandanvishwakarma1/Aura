@@ -8,6 +8,8 @@ import { LineChart } from 'react-native-gifted-charts'
 import { queryClient } from '@/utils/queryClient'
 import { Href, useRouter } from 'expo-router'
 import Arrow from '@/assets/Arrow'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 interface Position {
   _id: string
@@ -58,6 +60,7 @@ const fetchReturns = async (token: string) => {
 const Portfolio = () => {
   const { token } = useAuthStore()
   const router = useRouter()
+  const { activeTheme } = useTheme()
   const [isPointerActive, setIsPointerActive] = useState(false)
   const [activeValue, setActiveValue] = useState<number | null>(null)
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1M')
@@ -67,6 +70,8 @@ const Portfolio = () => {
     queryFn: () => fetchPortfolio(token),
     enabled: !!token,
   })
+
+  const isDark = activeTheme === 'dark'
 
   const { width } = useWindowDimensions()
 
@@ -83,7 +88,11 @@ const Portfolio = () => {
 
   const totalReturnPercent = portfolioData?.totalReturnPercent || 0
   const totalEquity = portfolioData?.totalEquity || 0
-  const positions = portfolioData?.flattenedPositions || []
+  const positions = useMemo(()=>{
+    const rawPositions = portfolioData?.flattenedPositions || []
+    return rawPositions.slice(0,20)
+
+  }, [portfolioData?.flattenedPositions])
   const profiles = portfolioData?.profiles || []
 
   const isPositiveOverall = totalReturnPercent >= 0
@@ -136,12 +145,12 @@ const Portfolio = () => {
     maximumFractionDigits: 2
   })
 
-  console.log(chartPoints)
+  // console.log(chartPoints)
 
   if (isLoading) {
     return (
       <View className='flex-1 items-center justify-center bg-white'>
-        <ActivityIndicator size={'large'} color={'#000'} />
+        <ActivityIndicator size={'large'} color={isDark ? Colors.dark.textPrimary : Colors.light.textPrimary} />
       </View>
     )
   }
@@ -154,21 +163,21 @@ const Portfolio = () => {
         <RefreshControl
           refreshing={isRefetching}
           onRefresh={handleRefetch}
-          colors={['#4A629B']}
-          tintColor={'#4A629B'}
+          colors={[isDark ? Colors.light.primary : Colors.dark.primary]}
+          tintColor={isDark ? Colors.light.primary : Colors.dark.primary}
         />
       }
     >
       <View className='mt-4'>
-        <Text className='text-3xl font-bold'>Portfolio</Text>
+        <Text className='text-3xl font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Portfolio</Text>
       </View>
 
-      <View className='mt-6 bg-gray-100 rounded-3xl p-6 gap-y-6'>
-        <Text className='text-sm font-bold text-gray-400 uppercase'>Total Portfolio Equity</Text>
+      <View className='mt-6 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6 gap-y-6'>
+        <Text className='text-sm font-bold text-aura-text-muted uppercase'>Total Portfolio Equity</Text>
         <View className='flex-row justify-between mt-3 gap-3 items-end'>
-          <Text className='text-3xl font-aura-bold'>₹ {totalEquity ? Number(totalEquity).toLocaleString('en-IN') : '0'}</Text>
-          <View className={`flex-row items-center px-2 py-1 rounded-xl ${totalReturnPercent > 0 ? 'bg-green-100' : totalReturnPercent == 0 ? 'bg-gray-200' : 'bg-red-100'}`}>
-            <Text className={`font-bold text-sm ${totalReturnPercent > 0 ? 'text-green-600' : totalReturnPercent == 0 ? 'text-gray-900' : 'text-red-600'}`}>
+          <Text className='text-3xl font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>₹ {totalEquity ? Number(totalEquity).toLocaleString('en-IN') : '0'}</Text>
+          <View className={`flex-row items-center px-1 py-1 rounded-3xl ${totalReturnPercent > 0 ? 'bg-aura-positive/10' : totalReturnPercent == 0 ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-aura-negative/10'}`}>
+            <Text className={`font-bold text-sm ${totalReturnPercent > 0 ? 'text-aura-positive' : totalReturnPercent == 0 ? 'text-aura-text-primary dark:text-aura-text-primary-dark' : 'text-aura-negative'}`}>
               {isPositiveOverall ? '+' : '-'}{totalReturnPercent}% {returnsData?.range ? ` (${returnsData?.range}) ` : ''}
             </Text>
           </View>
@@ -176,17 +185,17 @@ const Portfolio = () => {
       </View>
 
       {/* CHART CONTAINER */}
-     {chartPoints.length == 0 ? null : ( <View>
-        <View className='bg-gray-100 mt-6 rounded-3xl pt-5 pb-2 items-start justify-center overflow-hidden'>
-          <Text className={`font-bold text-3xl mb-1 mx-6 ${latestReturns > 0 ? 'text-green-600' : latestReturns === 0 ? 'text-gray-600' : 'text-red-600'}`}>
+      {chartPoints.length == 0 ? null : (<View>
+        <View className='bg-aura-surface dark:bg-aura-surface-dark mt-6 rounded-3xl pt-5 pb-2 items-start justify-center overflow-hidden'>
+          <Text className={`font-bold text-3xl mb-1 mx-6 ${latestReturns > 0 ? 'text-aura-positive' : latestReturns === 0 ? 'text-aura-text-primary dark:text-aura-text-primary-dark' : 'text-aura-negative'}`}>
             {((isPointerActive ? activeValue ?? latestReturns : latestReturns) >= 0 ? '+' : '')}
             {Number(isPointerActive ? activeValue ?? latestReturns : latestReturns).toFixed(2)}
           </Text>
-          <Text className='text-gray-400 text-xs mt-1 mx-6'>Cumulative Return ({selectedRange || 'All'})</Text>
+          <Text className='text-aura-text-muted text-xs mt-1 mx-6'>Cumulative Return ({selectedRange || 'All'})</Text>
 
           <View className='w-full items-center justify-center overflow-hidden'>
             {isReturnsPending ? (
-              <ActivityIndicator size={'small'} color={'#000'} />
+              <ActivityIndicator size={'small'} color={isDark ? Colors.dark.textPrimary : Colors.light.textPrimary} />
             ) : chartPoints.length > 0 ? (
               <LineChart
                 key={selectedRange}
@@ -197,16 +206,16 @@ const Portfolio = () => {
                 initialSpacing={0}
                 endSpacing={0}
                 thickness={3}
-                color={isPositive ? '#4671ED' : '#ef4444'}
+                color={isPositive ? Colors.dark.positive : Colors.light.negative}
                 hideRules
                 hideDataPoints
                 areaChart
                 curved
-                startFillColor='rgba(22,163,74,0.75)'
-                endFillColor='rgba(5,7,14,0)'
+                startFillColor={isPositive ? 'rgba(34,198,110,0.75)' : 'rgba(239,68,68,0.75)'}
+                endFillColor={isPositive ? 'rgba(5, 177, 105, 0)' : 'rgba(207, 32, 47, 0)'}
                 startOpacity={0.6}
                 endOpacity={0}
-                isAnimated
+                isAnimated={false}
                 animationDuration={800}
                 animateOnDataChange
                 hideAxesAndRules
@@ -221,30 +230,35 @@ const Portfolio = () => {
                   pointerStripHeight: 100,
                   pointerStripWidth: 1,
                   // pointerStripUptoDataPoint: true,
+                  persistPointer: true,
                   pointerColor: '#fff',
                   pointerStripColor: '#fff',
                   activatePointersOnLongPress: false,
                   pointerEvents: 'auto',
                   pointerVanishDelay: 0,
                   pointerLabelComponent: (items: any[]) => {
-                    if (items && items.length > 0) {
-                      const activeItem = items[0]
+                    // if (items && items.length > 0) {
+                    //   const activeItem = items[0]
 
-                      if (activeItem && typeof activeItem.value === 'number')
-                        setActiveValue(Number(activeItem.value))
-                      setIsPointerActive(true)
-                    }
+                    //   if (activeItem && typeof activeItem === 'object' && 'value' in activeItem && typeof activeItem.value === 'number') {
+
+                    //     setActiveValue(Number(activeItem?.value))
+                    //     setIsPointerActive(true)
+                    //   }
+                    // }
                     return null
                   },
-                  onPointerLeave: () => setIsPointerActive(false)
+                  onPointerLeave: () => {
+                    setIsPointerActive(false)
+                  }
                 }}
               />
             ) : (
-              <Text className='text-center text-gray-400 py-6'>No chart data available for this range</Text>
+              <Text className='text-center text-aura-text-secondary dark:text-aura-text-secondary-dark py-6'>No chart data available for this range</Text>
             )}
           </View>
         </View>
-        <View className='flex-row justify-between bg-gray-100 p-1 rounded-xl mt-4'>
+        <View className='flex-row justify-between bg-aura-surface dark:bg-aura-surface-dark p-1 rounded-xl mt-4'>
           {(['1W', '1M', '3M', '6M', '1Y', 'ALL'] as TimeRange[]).map((r) => {
             const isActive = selectedRange === r
             return (
@@ -266,7 +280,7 @@ const Portfolio = () => {
                 }}
                 hitSlop={4}
               >
-                <Text className={`text-xs font-bold ${isActive ? 'text-black' : 'text-gray-400'}`}>{r}</Text>
+                <Text className={`text-xs font-bold ${isActive ? 'text-aura-text-primary-dark dark:text-aura-text-primary' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>{r}</Text>
               </Pressable>
             )
           })}
@@ -276,7 +290,7 @@ const Portfolio = () => {
 
       {/* PROFILES */}
       <View className='mt-6'>
-        {profiles?.length == 0 ? null : <Text className='font-semibold text-xl'>{getProfileHead(profiles.length)}</Text>}
+        {profiles?.length == 0 ? null : <Text className='font-semibold text-xl text-aura-text-primary dark:text-aura-text-primary-dark'>{getProfileHead(profiles.length)}</Text>}
         <View className='flex-row mt-6 flex-wrap justify-between gap-y-4'>
           {profiles && profiles.length > 0 ? (
             profiles.map((item: Profile, index: number) => {
@@ -285,7 +299,7 @@ const Portfolio = () => {
                 <Pressable
                   key={index}
                   onPress={() => router.navigate(`/(profile)/${item.profileId}/Metrics`)}
-                  className='bg-gray-100 rounded-3xl p-6 gap-y-4' style={{ width: '48%' }}
+                  className='bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6 gap-y-4' style={{ width: '48%' }}
                 >
                   <View className='w-12 h-12'>
                     <Image
@@ -294,21 +308,21 @@ const Portfolio = () => {
                       contentFit='cover'
                     />
                   </View>
-                  <Text className='font-semibold text-base' numberOfLines={1}>{name}</Text>
+                  <Text className='font-semibold text-base text-aura-text-primary dark:text-aura-text-primary-dark' numberOfLines={1}>{name}</Text>
                 </Pressable>
               )
             })
           ) : profiles.length == 0
             ? (
               <View className='flex-1  items-center justify-center mt-24'>
-                <Text className='text-base font-semibold text-gray-600'>Follow profiles to start copying trades.</Text>
+                <Text className='text-base font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Follow profiles to start copying trades.</Text>
                 <View className='mt-9'>
-                  <Arrow width={120} height={120} />
+                  <Arrow width={120} height={120} color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
                 </View>
               </View>
 
             ) : (
-              <Text className='text-gray-400'>No Profiles</Text>
+              <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark'>No Profiles</Text>
             )}
         </View>
       </View>
@@ -316,12 +330,21 @@ const Portfolio = () => {
       {/* ACTIVE POSITIONS */}
       <View className='mt-6 mb-10'>
         {portfolioData?.follows?.length == 0 ? null : (<View className='flex-row justify-between items-center'>
-          <Text className='text-xl font-semibold'>Active Positions</Text>
+          <Text className='text-xl font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>Active Positions</Text>
           {positions.length == 0 ? null : (<Pressable
             onPress={() => router.navigate({ pathname: '/(trade)/Trade', params: { initialStatus: 'open' } })}
-            className='rounded-xl py-1 px-3 active:bg-gray-100'
+            className='rounded-xl py-1 px-3 '
+            style={({ pressed }) => [
+              pressed && {
+                backgroundColor: 'var(--aura-surface)',
+              }
+            ]}
           >
-            <Text className='font-semibold text-[#476eda]'>See All</Text>
+            {({ pressed }) => (
+              <View className={`rounded-xl py-1 px-3 ${pressed ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-transparent'}`}>
+                <Text className='font-semibold text-aura-primary'>See all</Text>
+              </View>
+            )}
           </Pressable>)}
         </View>)}
 
@@ -337,7 +360,7 @@ const Portfolio = () => {
             return (
               <Pressable
                 key={index}
-                className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-gray-100 rounded-3xl p-6'
+                className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6'
                 onPress={() => handleOnPress(item._id)}
               >
                 <View className='w-14 h-14'>
@@ -349,13 +372,13 @@ const Portfolio = () => {
                 </View>
                 <View className='flex-1 flex-row justify-between'>
                   <View>
-                    <Text className='font-semibold text-base'>{item.symbol}</Text>
-                    <Text className='text-sm text-gray-600'>₹{avgPrice}</Text>
+                    <Text className='font-semibold text-base text-aura-text-primary dark:text-aura-text-primary-dark'>{item.symbol}</Text>
+                    <Text className='text-sm text-aura-text-secondary dark:text-aura-text-secondary-dark'>₹{avgPrice}</Text>
                   </View>
                   <View className='items-end'>
-                    <Text className='font-semibold text-base text-end'>₹{currentPrice}</Text>
-                    <Text className={`${rawUnrealizedPnl > 0 ? 'text-green-600' : 'text-red-600'} text-sm font-semibold`}>
-                      {rawUnrealizedPnl > 0 ? '+' : ''}{unrealizedPnl}
+                    <Text className='font-semibold text-base text-end text-aura-text-primary dark:text-aura-text-primary-dark'>₹{currentPrice}</Text>
+                    <Text className={`${rawUnrealizedPnl > 0 ? 'text-aura-positive' : 'text-aura-negative'} text-sm font-semibold`}>
+                      {rawUnrealizedPnl > 0 ? '+' : '-'}{unrealizedPnl}
                     </Text>
                   </View>
                 </View>
@@ -363,9 +386,9 @@ const Portfolio = () => {
             )
           })
         ) : positions.length == 0 ? (
-          <Text className='mt-3 text-base font-semibold text-gray-600'>Your open positions will appear here.</Text>
+          <Text className='mt-3 text-base font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Your open positions will appear here.</Text>
         ) : (
-          <Text className='text-gray-400 mt-2'>No Positions</Text>
+          <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark mt-2'>No Positions</Text>
         )}
       </View>
     </ScrollView>

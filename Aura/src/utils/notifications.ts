@@ -31,7 +31,7 @@ const registerForPushNotificationsAsync = async (authToken:string) => {
     }
 
     if (finalStatus !== 'granted') {
-        alert('Failed to get push token for push notification!')
+        // alert('Failed to get push token for push notification!')
         return;
     }
 
@@ -46,7 +46,7 @@ const registerForPushNotificationsAsync = async (authToken:string) => {
         token = (
             await Notifications.getExpoPushTokenAsync({ projectId })
         ).data
-        console.log("push token: ", token)
+        // console.log("push token: ", token)
 
         await sendToken(token, authToken)
     } catch (error) {
@@ -70,7 +70,7 @@ const sendToken = async(token:string, authToken:string) => {
             body: JSON.stringify({deviceToken: token})
         })
         const data = await res.json()
-        console.log('Device token successfully registered.', data)
+        // console.log('Device token successfully registered.', data)
     } catch (error) {
         console.log('Failed to register device token: ', error)
     }

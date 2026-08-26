@@ -1,5 +1,5 @@
 import { View, Text, Pressable, ActivityIndicator, ScrollView, RefreshControl } from 'react-native'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Href, useLocalSearchParams, useRouter } from 'expo-router'
 import { ArrowLeft, Info } from 'lucide-react-native'
 import { Image } from 'expo-image'
@@ -7,6 +7,8 @@ import { useAuthStore } from '../../../../store/authStore'
 import { queryClient } from '@/utils/queryClient'
 import { useQuery } from '@tanstack/react-query'
 import { getNextRun } from '@/utils/getNextRun'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 interface Position {
     _id: string,
@@ -46,6 +48,8 @@ const fetchFollow = async (id: string, token: string) => {
 const Metrics = () => {
     const router = useRouter()
     const { id } = useLocalSearchParams<{ id: string }>()
+    const { activeTheme } = useTheme()
+    const isDark = activeTheme === 'dark'
     const { token } = useAuthStore()
 
     const { data: profileData, isLoading: isProfileLoading, isError: isProfileErr, error: profileErr, isRefetching: isProfileRefetching, refetch: profileRefetch } = useQuery({
@@ -55,7 +59,11 @@ const Metrics = () => {
     })
 
     const follow: Follow = profileData?.follow
-    const positions: Position[] = profileData?.positions || []
+    const positions = useMemo(() => {
+        const rawPositions: Position[] = profileData?.positions || []
+        return rawPositions.slice(0, 20)
+
+    }, [profileData?.positions])
     const handleRefetch = async () => {
         await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['profile', 'metrics', id] })
@@ -110,8 +118,8 @@ const Metrics = () => {
                 <RefreshControl
                     refreshing={isProfileRefetching}
                     onRefresh={handleRefetch}
-                    colors={['#4A629B']} //android
-                    tintColor={'#4A629B'} //ios
+                    colors={[isDark ? Colors.light.primary : Colors.dark.primary]} //android
+                    tintColor={isDark ? Colors.light.primary : Colors.dark.primary} //ios
                 />
             }
             contentContainerStyle={{ paddingBottom: 46 }}
@@ -122,13 +130,18 @@ const Metrics = () => {
                 <Pressable
                     onPress={() => router.back()}
                     hitSlop={{ top: 20, right: 20, left: 20, bottom: 20 }}
-                    className='p-2 -ml-2 rounded-full active:bg-gray-100'
+                    className='p-2 -ml-2 rounded-full'
                 >
-                    <ArrowLeft />
+                    {({ pressed }) => (
+                        <View className={`rounded-full p-1 ${pressed ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-transparent'}`}>
+                            <ArrowLeft color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
+                        </View>
+                    )}
                 </Pressable>
                 {/* <View></View> */}
-                <Text className='flex-1 text-center text-xl  font-aura-bold'>Profile</Text>
-                <View className='w-6' />
+                <View className='absolute inset-0 items-center justify-center pointer-events-none'>
+                    <Text className='text-xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark'>Profile</Text>
+                </View>
             </View>
 
             <View>
@@ -139,64 +152,64 @@ const Metrics = () => {
                             style={{ width: '100%', height: '100%', borderRadius: 100 }} />
                     </View>
                     <View className='flex-1 min-w-0 shrink'>
-                        <Text className='text-3xl font-semibold text-wrap'>{profileName}</Text>
-                        <Text className='mt-1 text-base'>{shortIntro}</Text>
+                        <Text className='text-3xl font-semibold text-wrap text-aura-text-primary dark:text-aura-text-primary-dark'>{profileName}</Text>
+                        <Text className='mt-1 text-base text-aura-text-secondary dark:text-aura-text-secondary-dark'>{shortIntro}</Text>
                     </View>
                 </View>
 
                 <View className='w-full mt-3'>
-                    <Text className='text-base  text-gray-600'>{description}</Text>
+                    <Text className='text-base  text-aura-text-secondary dark:text-aura-text-secondary-dark'>{description}</Text>
                 </View>
 
-                <View className='bg-gray-100 rounded-3xl mt-6 p-6 gap-3'>
+                <View className='bg-aura-surface dark:bg-aura-surface-dark rounded-3xl mt-6 p-6 gap-3'>
                     <View className='flex-row items-center justify-between'>
-                        <Text className='text-sm font-semibold text-gray-600'>Capital Allocated</Text>
-                        <Text className='font-aura-bold text-lg'>₹{capitalAllocated ?? 0.00}</Text>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Capital Allocated</Text>
+                        <Text className='font-aura-bold text-lg text-aura-text-primary dark:text-aura-text-primary-dark'>₹{capitalAllocated ?? 0.00}</Text>
                     </View>
                     <View className='flex-row items-center justify-between'>
-                        <Text className='text-sm font-semibold text-gray-600'>Current Value</Text>
-                        <Text className='font-aura-bold text-lg'>₹{currentValue ?? 0.00}</Text>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Current Value</Text>
+                        <Text className='font-aura-bold text-lg  text-aura-text-primary dark:text-aura-text-primary-dark'>₹{currentValue ?? 0.00}</Text>
                     </View>
                     <View className='flex-row items-center justify-between'>
-                        <Text className='text-sm font-semibold text-gray-600'>Realized Pnl</Text>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Realized Pnl</Text>
                         <Text className={`font-aura-bold text-lg 
-                            ${rawRealizedPnl > 0 ? 'text-green-600' : rawRealizedPnl == 0 ? 'text-gray-900' : 'text-red-600'}`}
+                            ${rawRealizedPnl > 0 ? 'text-aura-positive' : rawRealizedPnl == 0 ? ' text-aura-text-primary dark:text-aura-text-primary-dark' : 'text-aura-negative'}`}
                         >
                             {rawRealizedPnl > 0 ? '+' : rawRealizedPnl == 0 ? '' : '-'}₹{realizedPnl ?? 0.00}
                         </Text>
                     </View>
                     <View className='flex-row items-center justify-between'>
-                        <Text className='text-sm font-semibold text-gray-600'>Unrealized Pnl</Text>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Unrealized Pnl</Text>
                         <Text className={`font-aura-bold text-lg 
-                            ${rawUnrealizedPnl > 0 ? 'text-green-600' : rawUnrealizedPnl == 0 ? 'text-gray-900' : 'text-red-600'}`}
+                            ${rawUnrealizedPnl > 0 ? 'text-aura-positive' : rawUnrealizedPnl == 0 ? ' text-aura-text-primary dark:text-aura-text-primary-dark' : 'text-aura-negative'}`}
                         >
                             {rawUnrealizedPnl > 0 ? '+' : rawUnrealizedPnl == 0 ? '' : '-'}₹{unrealizedPnl ?? 0.00}
                         </Text>
                     </View>
                     <View className='flex-row items-center justify-between'>
-                        <Text className='text-sm font-semibold text-gray-600'>total Pnl</Text>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>total Pnl</Text>
                         <Text className={`font-aura-bold text-lg 
-                            ${rawTotalPnl > 0 ? 'text-green-600' : rawTotalPnl == 0 ? 'text-gray-900' : 'text-red-600'}`}
+                            ${rawTotalPnl > 0 ? 'text-aura-positive' : rawTotalPnl == 0 ? 'text-aura-text-primary dark:text-aura-text-primary-dark' : 'text-aura-negative'}`}
                         >
                             {rawTotalPnl > 0 ? '+' : rawTotalPnl == 0 ? '' : '-'}₹{totalPnl ?? 0.00}
                         </Text>
                     </View>
                     <View className='flex-row items-center justify-between'>
-                        <Text className='text-sm font-semibold text-gray-600'>Return Percent</Text>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Return Percent</Text>
                         <Text className={`font-aura-bold text-lg 
-                            ${rawReturnPercent > 0 ? 'text-green-600' : rawReturnPercent == 0 ? 'text-gray-900' : 'text-red-600'}`}
+                            ${rawReturnPercent > 0 ? 'text-aura-positive' : rawReturnPercent == 0 ? 'text-aura-text-primary dark:text-aura-text-primary-dark' : 'text-aura-negative'}`}
                         >
                             {rawReturnPercent > 0 ? '+' : rawReturnPercent == 0 ? '' : '-'}{returnPercent ?? 0.00}%
                         </Text>
                     </View>
                 </View>
                 <View className='mt-3'>
-                    <Text className=' font-semibold text-lg'>Schedule</Text>
-                    <View className='bg-gray-100 rounded-3xl p-6 mt-3 self-start'>
-                        <Text className='text-gray-600 font-semibold text-sm'>
+                    <Text className=' font-semibold text-lg  text-aura-text-primary dark:text-aura-text-primary-dark'>Schedule</Text>
+                    <View className='bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6 mt-3 self-start'>
+                        <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold text-sm'>
                             Next run
                         </Text>
-                        <Text className='text-gray-600 font-semibold text-base'>
+                        <Text className='text-aura-text-primary dark:text-aura-text-primary-dark font-semibold text-base'>
                             {nextRun?.toLocaleDateString('en-IN', {
                                 year: 'numeric',
                                 month: 'numeric',
@@ -210,15 +223,21 @@ const Metrics = () => {
 
                 <View>
                     <View className='flex-row items-center justify-between mt-6'>
-                        <Text className='font-semibold text-lg'>Current Open positions ({positions.length || 0})</Text>
+                        <Text className='font-semibold text-lg text-aura-text-primary dark:text-aura-text-primary-dark'>Current Open positions ({positions.length || 0})</Text>
                         {positions.length == 0 ? null : (<Pressable
-                            onPress={() => router.navigate({
-                                pathname: '/(trade)/Trade',
-                                params: { profileName }
-                            })}
-                            className='rounded-lg py-1 px-3 active:bg-gray-100'
+                            onPress={() => router.navigate({ pathname: '/(trade)/Trade', params: { profileName } })}
+                            className=' rounded-xl py-1 px-3 '
+                            style={({ pressed }) => [
+                                pressed && {
+                                    backgroundColor: 'var(--aura-surface)',
+                                }
+                            ]}
                         >
-                            <Text className='font-semibold  text-[#476eda]'>See all</Text>
+                            {({ pressed }) => (
+                                <View className={`rounded-xl py-1 px-3 ${pressed ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-transparent'}`}>
+                                    <Text className='font-semibold text-aura-primary'>See all</Text>
+                                </View>
+                            )}
                         </Pressable>)}
 
                     </View>
@@ -235,7 +254,7 @@ const Metrics = () => {
                             return (
                                 <Pressable
                                     key={index}
-                                    className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-gray-100 rounded-3xl p-6'
+                                    className='flex-1 flex-row gap-3 gap-y-4 mt-3 items-center bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6'
                                     onPress={() => handleOnPress(item._id)}
                                 >
                                     <View className='w-14 h-14'>
@@ -247,12 +266,12 @@ const Metrics = () => {
                                     </View>
                                     <View className='flex-1 flex-row  justify-between'>
                                         <View>
-                                            <Text className='font-semibold text-base'>{item.symbol}</Text>
-                                            <Text className='text-sm text-gray-600'>₹{avgPrice}</Text>
+                                            <Text className='font-semibold text-base text-aura-text-primary dark:text-aura-text-primary-dark'>{item.symbol}</Text>
+                                            <Text className='text-sm text-aura-text-secondary dark:text-aura-text-secondary-dark'>₹{avgPrice}</Text>
                                         </View>
                                         <View className='items-end'>
-                                            <Text className='font-semibold text-base text-end'>₹{currentPrice}</Text>
-                                            <Text className={`${rawUnrealizedPnl > 0 ? 'text-green-600' : 'text-red-600'} text-sm font-semibold`}>{rawUnrealizedPnl > 0 ? '+' : ''}{unrealizedPnl}</Text>
+                                            <Text className='font-semibold text-base text-end text-aura-text-primary dark:text-aura-text-primary-dark'>₹{currentPrice}</Text>
+                                            <Text className={`${rawUnrealizedPnl > 0 ? 'text-aura-positive' : 'text-aura-negative'} text-sm font-semibold`}>{rawUnrealizedPnl > 0 ? '+' : ''}{unrealizedPnl}</Text>
 
                                         </View>
                                     </View>
@@ -260,12 +279,12 @@ const Metrics = () => {
                             )
                         })
                     ) : positions.length == 0 ? (
-                        <View className='p-6 flex-row items-start  bg-gray-100 rounded-3xl mt-3 gap-3'>
-                            <Info size={16} color={'#4b5563'} />
-                            <Text className='font-semibold text-gray-600'>You might need to wait for few days to start recieving trades.</Text>
+                        <View className='p-6 flex-row items-start  bg-aura-surface dark:bg-aura-surface-dark rounded-3xl mt-3 gap-3'>
+                            <Info size={16} color={isDark ? Colors.dark.textPrimary : Colors.light.textPrimary} />
+                            <Text className='font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>You might need to wait for few days to start recieving trades.</Text>
                         </View>
                     ) : (
-                        <Text className='mt-3 '>No Positions</Text>
+                        <Text className='mt-3 text-aura-text-secondary dark:text-aura-text-secondary-dark'>No Positions</Text>
                     )}
                 </View>
             </View>

@@ -7,6 +7,8 @@ import { ArrowDownRight, ArrowLeft, ArrowUpRight } from 'lucide-react-native'
 import { LineChart } from 'react-native-gifted-charts'
 import { Image } from 'expo-image'
 import formatFollowers from '@/utils/format'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 
 const fetchPosition = async (token: string, id: string) => {
@@ -75,6 +77,8 @@ const PositionDetail = () => {
     const { id: paramsId } = useLocalSearchParams()
     const id = typeof paramsId === 'string' ? paramsId : ''
     const { token } = useAuthStore()
+    const { activeTheme } = useTheme()
+    const isDark = activeTheme === 'dark'
     const { width } = useWindowDimensions()
     const router = useRouter()
     const { data, isPending, error: posErr } = useQuery({
@@ -138,64 +142,68 @@ const PositionDetail = () => {
                 <Pressable
                     onPress={() => router.back()}
                     hitSlop={{ top: 20, right: 20, left: 20, bottom: 20 }}
-                    className='p-2 -ml-2'
+                    className='p-2 -ml-2 rounded-full'
                 >
-                    <ArrowLeft />
+                    {({ pressed }) => (
+                        <View className={`rounded-full p-1 ${pressed ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-transparent'}`}>
+                            <ArrowLeft color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
+                        </View>
+                    )}
                 </Pressable>
-                <View className='flex-1 justify-center items-center'>
-                    <Text className='font-semibold text-xl'>{position.symbol || 'Position Details'}</Text>
+                {/* <View></View> */}
+                <View className='absolute inset-0 items-center justify-center pointer-events-none'>
+                    <Text className='text-xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark'>{position.symbol}</Text>
                 </View>
-                <View className='w-9' />
             </View>
             <View className='flex-row justify-between items-end'>
 
                 <View className='mt-6'>
-                    <Text className='text-3xl font-aura-bold'>₹ {currentPrice.toFixed(2)}</Text>
+                    <Text className='text-3xl font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>₹ {currentPrice.toFixed(2)}</Text>
                     <View className='flex-row  items-center mt-1'>
                         {isTodayPositive === true && (
-                            <ArrowUpRight color={'green'} strokeWidth={3} />
+                            <ArrowUpRight color={isDark ? Colors.dark.positive : Colors.light.positive} strokeWidth={3} />
                         )}
                         {isTodayPositive === false && (
-                            <ArrowDownRight color={'red'} strokeWidth={3} />
+                            <ArrowDownRight color={isDark ? Colors.dark.negative : Colors.light.negative} strokeWidth={3} />
                         )}
-                        <Text className={`font-semibold text-sm ${isTodayPositive ? 'text-green-600' : 'text-red-600'}`}>{isTodayPositive ? '+' : ''}{todaysChangePercent.toFixed(2)}% (today)</Text>
+                        <Text className={`font-semibold text-sm ${isTodayPositive ? 'text-aura-positive' : 'text-aura-negative'}`}>{isTodayPositive ? '+' : ''}{todaysChangePercent.toFixed(2)}% (today)</Text>
                     </View>
                 </View>
-                <View className='py-1 px-3 bg-green-100 rounded-lg'>
-                    <Text className='font-aura-bold text-green-600'>Open</Text>
+                <View className='py-1 px-3 bg-aura-surface dark:bg-aura-surface-dark rounded-lg'>
+                    <Text className='font-aura-bold text-aura-positive'>Open</Text>
                 </View>
             </View>
 
             <View className='mt-6'>
-                <Text className='text-xl font-semibold'>Your paper position</Text>
-                <View className='flex-row items-center justify-between bg-gray-100 p-6 rounded-3xl mt-3'>
+                <Text className='text-xl font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>Your paper position</Text>
+                <View className='flex-row items-center justify-between bg-aura-surface dark:bg-aura-surface-dark p-6 rounded-3xl mt-3'>
                     <View className='gap-4'>
                         <View>
-                            <Text className='text-sm font-semibold text-gray-600'>Shares Owned</Text>
-                            <Text className='font-aura-bold'>{Number(quantity).toLocaleString('en-IN')}</Text>
+                            <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Shares Owned</Text>
+                            <Text className='font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>{Number(quantity).toLocaleString('en-IN')}</Text>
                         </View>
                         <View>
-                            <Text className='text-sm font-semibold text-gray-600'>Current Value</Text>
-                            <Text className='font-aura-bold'>₹{Number(totalValue.toFixed(2)).toLocaleString('en-IN')}</Text>
+                            <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark '>Current Value</Text>
+                            <Text className='font-aura-bold  text-aura-text-primary dark:text-aura-text-primary-dark'>₹{Number(totalValue.toFixed(2)).toLocaleString('en-IN')}</Text>
                         </View>
                     </View>
                     <View className='gap-4 '>
                         <View className='flex-1 items-end'>
-                            <Text className='text-sm font-semibold text-gray-600'>Avg Cost</Text>
-                            <Text className='font-aura-bold'>{Number(avgPrice.toFixed(2)).toLocaleString('en-IN')}</Text>
+                            <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Avg Cost</Text>
+                            <Text className='font-aura-bold  text-aura-text-primary dark:text-aura-text-primary-dark'>{Number(avgPrice.toFixed(2)).toLocaleString('en-IN')}</Text>
                         </View>
                         <View className='flex-1 items-end'>
-                            <Text className='text-sm font-semibold text-gray-600'>Total P&L</Text>
-                            <Text className={` font-aura-bold ${isOverallPositive ? 'text-green-600' : 'text-red-600'}`}>{isOverallPositive ? '+' : '-'}₹{Number(absPnl.toFixed(2)).toLocaleString('en-IN')}</Text>
+                            <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Total P&L</Text>
+                            <Text className={` font-aura-bold ${isOverallPositive ? 'text-aura-positive' : 'text-aura-negative'}`}>{isOverallPositive ? '+' : '-'}₹{Number(absPnl.toFixed(2)).toLocaleString('en-IN')}</Text>
                         </View>
                     </View>
                 </View>
             </View>
 
             {/* <Text className='mt-6 text-xl font-semibold'>TimeFrame</Text> */}
-            <View className='p-6 mt-3 bg-gray-100 rounded-3xl self-start'>
-                <Text className='text-xs text-gray-600 font-semibold'>Opened At</Text>
-                <Text className='font-aura-bold'>
+            <View className='p-6 mt-3 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl self-start'>
+                <Text className='text-xs text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold'>Opened At</Text>
+                <Text className='font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>
                     {openDate.toLocaleDateString('en-IN', {
                         day: 'numeric',
                         month: 'short',
@@ -207,8 +215,8 @@ const PositionDetail = () => {
             </View>
 
             <View className='mt-6'>
-                <Text className='text-xl font-semibold'>Copy Source</Text>
-                <View className='flex-row items-center mt-3 gap-3 bg-gray-100 rounded-3xl p-6'>
+                <Text className='text-xl font-semibold  text-aura-text-primary dark:text-aura-text-primary-dark'>Copy Source</Text>
+                <View className='flex-row items-center mt-3 gap-3 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6'>
                     <View className='w-14 h-14'>
                         {profileImage && <Image
                             source={profileImage ? { uri: profileImage as string } : undefined}
@@ -216,9 +224,9 @@ const PositionDetail = () => {
                         />}
                     </View>
                     <View>
-                        <Text className='text-base font-semibold '>{profileName}</Text>
+                        <Text className='text-base font-semibold  text-aura-text-primary dark:text-aura-text-primary-dark'>{profileName}</Text>
                         {/* <Text className='text-sm font-semibold text-gray-600'>{formatFollowers(followCount)} {followCount === 1 ? 'follower' : 'followers'}</Text> */}
-                        <Text className='text-sm font-semibold text-gray-600'>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>
                             {'Bought'} {position.quantity} shares of {position.symbol}
                         </Text>
                     </View>

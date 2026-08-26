@@ -1,13 +1,21 @@
-import { NativeTabs } from 'expo-router/build/native-tabs'
+import { Colors } from '@/constants/Colors'
+import { useTheme } from '@/lib/ThemeContext'
+import { NativeTabs } from 'expo-router/unstable-native-tabs'
 
 const TabLayout = () => {
+  const {activeTheme } = useTheme()
+  const isDark = activeTheme === 'dark'
   return (
     <NativeTabs
-      backgroundColor={'white'}
-      rippleColor={'#e0e0e0'}
-      badgeBackgroundColor={'#e0e0e0'}
-      tintColor={'black'}
-      indicatorColor={'#e0e0e0'}
+      backgroundColor={isDark ? Colors.dark.background : Colors.light.background}
+      rippleColor={'transparent'}
+      // badgeBackgroundColor={'#e0e0e0'}
+      iconColor={{
+        default: isDark ? Colors.dark.textPrimary : Colors.light.textPrimary,
+        selected: isDark ? Colors.dark.primary : Colors.light.primary,
+      }}
+      tintColor={isDark ? Colors.dark.primary : Colors.light.primary}
+      indicatorColor={isDark ? Colors.dark.surface : Colors.light.surface}
     >
       <NativeTabs.Trigger name='index'>
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>

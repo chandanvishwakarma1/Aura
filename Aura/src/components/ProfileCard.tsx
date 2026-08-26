@@ -7,6 +7,8 @@ import { Image } from 'expo-image'
 import { Href, useRouter } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react-native'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 interface ProfileItem {
     _id: string,
@@ -46,6 +48,8 @@ const Shimmer = ({ className }: { className: string }) => {
 const ProfileCard = ({ item }: Profile) => {
     const { token } = useAuthStore()
     const router = useRouter()
+    const { activeTheme } = useTheme()
+    const isDark = activeTheme === 'dark'
     const id = item._id
 
     const { width: screenWidth } = useWindowDimensions()
@@ -68,7 +72,7 @@ const ProfileCard = ({ item }: Profile) => {
     return (
         <Pressable
             key={item._id}
-            className='justify-between bg-gray-100 rounded-3xl p-6 min-w-[160px] active:opacity-70 gap-6'
+            className='justify-between bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6 min-w-[160px] active:opacity-70 gap-6'
             style={{ width: cardWidth }}
             onPress={handlePress}
         >
@@ -79,25 +83,25 @@ const ProfileCard = ({ item }: Profile) => {
             </View>
             <View>
                 <View>
-                    <Text className='font-semibold text-base' numberOfLines={1}>{item.name}</Text>
-                    <Text className='text-sm text-gray-600'>{formatFollowers(item.followCount)} {item.followCount <= 1 ? 'follower' : 'followers'}</Text>
+                    <Text className='font-semibold text-base text-aura-text-primary dark:text-aura-text-primary-dark' numberOfLines={1}>{item.name}</Text>
+                    <Text className='text-sm text-aura-text-secondary dark:text-aura-text-secondary-dark'>{formatFollowers(item.followCount)} {item.followCount <= 1 ? 'follower' : 'followers'}</Text>
                 </View>
                 {isPending ? (
                     <View className='h-[34px] justify-center mt-2'>
-                        <Shimmer className='w-full h-9  rounded-xl bg-gray-300' />
+                        <Shimmer className='w-full h-9  rounded-xl bg-aura-surface-elevated dark:bg-aura-surface-elevated-dark' />
                     </View>
                 ) : (
                     <View className='flex-row items-end mt-3'>
                         <View className='-ml-1'>
                             {latestReturns > 0 && (
-                                <ArrowUpRight size={30} color={'green'} />
+                                <ArrowUpRight size={30} color={isDark ? Colors.dark.positive : Colors.light.positive} />
                             )}
                             {latestReturns < 0 && (
-                                <ArrowDownRight size={30} color={'red'} />
+                                <ArrowDownRight size={30} color={isDark ? Colors.dark.negative : Colors.light.negative} />
                             )}
                         </View>
-                        <Text className={`text-2xl font-bold ${latestReturns > 0 ? 'text-green-600' : latestReturns < 0 ? 'text-red-600' : 'text-gray-600'}`}>{latestReturns > 0 ? '+' : ''}{latestReturns}% </Text>
-                        <Text className={`text-xs  pb-1 font-semibold ${latestReturns > 0 ? 'text-green-600' : latestReturns < 0 ? 'text-red-600' : 'text-gray-600'}`}>(30d)</Text>
+                        <Text className={`text-2xl font-bold ${latestReturns > 0 ? 'text-aura-positive' : latestReturns < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>{latestReturns > 0 ? '+' : ''}{latestReturns}% </Text>
+                        <Text className={`text-xs  pb-1 font-semibold ${latestReturns > 0 ? 'text-aura-positive' : latestReturns < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>(30d)</Text>
                     </View>
                 )}
             </View>

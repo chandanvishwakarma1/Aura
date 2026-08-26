@@ -6,6 +6,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../../store/authStore'
 import Slider from '@react-native-assets/slider'
 import { ApiError, getSanetizedErrorMessage } from '@/utils/apiError'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 export interface FollowSheetRef {
     open: () => void,
@@ -17,6 +19,8 @@ interface FollowSheetProps {
 }
 const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profileId }, ref) => {
     const bottomSheetRef = useRef<BottomSheet>(null)
+    const { activeTheme } = useTheme()
+    const isDark = activeTheme === 'dark'
     const { token, user, setUser } = useAuthStore()
     const snapPoints = useMemo(() => ['76%', '90%'], [])
     const [isOpen, setIsOpen] = useState(false)
@@ -97,11 +101,11 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
             onSuccess: (data) => {
                 Alert.alert('Success', 'You are now copying this profile')
                 queryClient.invalidateQueries({ queryKey: ['profile', profileId] })
-                queryClient.invalidateQueries({ queryKey: ['userProfile', user?.id]})
+                queryClient.invalidateQueries({ queryKey: ['userProfile', user?._id]})
                 if(data?.user){
                     setUser({
                         ...data.user,
-                        id: data.user._id
+                        _id: data.user._id
                     })
                 }
                 bottomSheetRef.current?.close()
@@ -159,43 +163,46 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
             failOffsetX={[-6, 6]}
             onChange={handleSheetChanges}
             backdropComponent={renderBackDrop}
+            backgroundStyle={{backgroundColor: isDark?Colors.dark.background : Colors.light.background}}
+            handleIndicatorStyle={{backgroundColor: isDark?Colors.dark.textSecondary : Colors.light.textSecondary, borderRadius: 100 }}
+            // containerStyle={{backgroundColor: isDark?Colors.dark.background : Colors.light.background}}
 
         >
             <BottomSheetScrollView
             style={{flex:1}}
-            contentContainerStyle={{paddingHorizontal: 24, paddingTop:24, paddingBottom: 140}}
+            contentContainerStyle={{paddingHorizontal: 24, paddingTop:24, paddingBottom: 140, backgroundColor: isDark?Colors.dark.background : Colors.light.background}}
             >
                 <View className='flex-row justify-between'>
-                    <Text className='text-xl font-aura-bold'>{name}</Text>
+                    <Text className='text-xl font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>{name}</Text>
                     <Pressable onPress={handleClosePress} hitSlop={{ top: 20, bottom: 20, right: 20, left: 20 }}>
-                        <X />
+                        <X color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
                     </Pressable>
                 </View>
                 {errorMessage && (
-                    <View className='flex-row  items-center bg-red-50 border border-red-300 rounded-xl p-3 mt-6'>
-                        <Info size={16} color={'#DC6262'} />
-                        <Text className='text-red-600 text-xs font-semibold ml-2 flex-1'>{errorMessage}</Text>
+                    <View className='flex-row  items-center bg-aura-negative/10 border border-aura-negative/30 rounded-xl p-3 mt-6'>
+                        <Info size={16} color={isDark ? Colors.dark.negative : Colors.light.negative} />
+                        <Text className='text-aura-negative text-xs font-semibold ml-2 flex-1'>{errorMessage}</Text>
                     </View>
                 )}
                 <View className='mt-6'>
                     <View className='flex-row items-center justify-between'>
-                    <Text className='text-xs font-bold text-gray-400 uppercase'>Capital to Allocate </Text>
-                    <Text className='text-xs font-semibold text-gray-600'>₹{formatCurrency(capitalAllocated)}</Text>
+                    <Text className='text-xs font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark uppercase'>Capital to Allocate </Text>
+                    <Text className='text-xs font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>₹{formatCurrency(capitalAllocated)}</Text>
                     </View>
 
 
                     <View className='flex-row gap-6 mt-2 justify-between items-center'>
-                        <View className="flex-row items-center justify-center border  border-gray-200 bg-gray-50 rounded-2xl px-4 py-1 "
+                        <View className="flex-row items-center justify-center border  border-aura-border dark:border-aura-border-dark bg-aura-surface dark:bg-aura-surface-dark rounded-2xl px-4 py-1 "
                             style={{ minWidth: 142 }}
                         >
-                            <Text className="text-xl font-bold text-gray-900 mr-1">₹</Text>
+                            <Text className="text-xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark mr-1">₹</Text>
                             <BottomSheetTextInput
                                 keyboardType="numeric"
-                                value={capitalAllocated === 0 ? '' : String(capitalAllocated)}
+                                value={capitalAllocated === 0 ? '' : String(formatCurrency(capitalAllocated))}
                                 onChangeText={handleTextChanges}
                                 placeholder="0"
                                 numberOfLines={1}
-                                className="text-lg font-bold text-gray-900 flex-1 items-center justify-center"
+                                className="text-lg font-bold text-aura-text-primary dark:text-aura-text-primary-dark flex-1 items-center justify-center"
                             />
                         </View>
 
@@ -209,7 +216,7 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                                 step={1000}
                                 value={Math.max(MIN_CAPITAL,capitalAllocated)}
                                 onValueChange={(val) => setCapitalAllocated(val)}
-                                minimumTrackTintColor="#4671ED"
+                                minimumTrackTintColor={isDark ? Colors.dark.primary : Colors.light.primary}
                                 maximumTrackTintColor="#E5E7EB"
                                 thumbStyle={{
                                     backgroundColor: 'white',
@@ -232,12 +239,16 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                                 <Pressable
                                     key={pct}
                                     onPress={() => setCapitalAllocated(MAX_CAPITAL * pct)}
-                                    className={` px-6 py-3 rounded-full ${isSelected
-                                        ? 'bg-black '
-                                        : 'bg-gray-100 '
-                                        }`}
+                                    // className={` px-6 py-3 rounded-full ${isSelected
+                                    //     ? 'bg-black dark:bg-white'
+                                    //     : 'bg-aura-surface dark:bg-aura-surface-dark '
+                                    //     }`}
+                                    style={{
+                                        backgroundColor: isSelected ? (isDark ? Colors.dark.textPrimary : Colors.light.textPrimary) : (isDark ? Colors.dark.surface : Colors.light.surface)
+                                    }}
+                                    className='px-6 py-3 rounded-full'
                                 >
-                                    <Text className={`text-base font-bold ${isSelected ? 'text-white' : 'text-black'}`}>{pct === 1 ? 'MAX' : `${pct * 100}%`}</Text>
+                                    <Text className={`text-base font-bold`} style ={{ color: isSelected ? (isDark ? Colors.dark.background : Colors.light.background) : (isDark ? Colors.dark.textPrimary : Colors.light.textPrimary)}}>{pct === 1 ? 'MAX' : `${pct * 100}%`}</Text>
                                 </Pressable>
                             )
                         })}
@@ -246,10 +257,10 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                     {/* <Text className='mb-4 text-gray-400 mt-1 text-xs font-semibold'>Max value = 1000000</Text> */}
 
                     <View className='mt-4'>
-                        <Text className='text-xs font-bold text-gray-400 uppercase'>Risk (0.1 = 10% of capital allocated)</Text>
+                        <Text className='text-xs font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark uppercase'>Risk (0.1 = 10% of capital allocated)</Text>
                     </View>
                     <View className='flex-row gap-4 items-center mt-2 mb-6'>
-                        <View className="flex-row items-center justify-center border  border-gray-200 bg-gray-50 rounded-2xl px-4 py-1 "
+                        <View className="flex-row items-center justify-center border  border-aura-border dark:border-aura-border-dark bg-aura-surface dark:bg-aura-surface-dark rounded-2xl px-4 py-1 "
                             style={{ minWidth: 90 }}
                         >
                             <BottomSheetTextInput
@@ -259,9 +270,9 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                                 textAlignVertical='center'
                                 placeholder="0"
                                 numberOfLines={1}
-                                className="text-lg font-bold text-gray-900  items-center  justify-center"
+                                className="text-lg font-bold text-aura-text-primary dark:text-aura-text-primary-dark  items-center  justify-center"
                             />
-                            <Text className="text-xl font-bold text-gray-900 mr-1">%</Text>
+                            <Text className="text-xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark mr-1">%</Text>
                         </View>
                         <View className='flex-row gap-1'>
                             {riskPresets.map((preset) => {
@@ -271,16 +282,17 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                                         key={preset}
                                         onPress={() => setRiskPercent(preset)}
                                         className={`px-6 py-3 rounded-full ${isSelected ? 'bg-black' : 'bg-gray-100'}`}
+                                        style={{ backgroundColor: isSelected ? (isDark ? Colors.dark.textPrimary : Colors.light.textPrimary) : (isDark ? Colors.dark.surface : Colors.light.surface)}}
                                     >
-                                        <Text className={`text-base font-bold ${isSelected ? 'text-white' : 'text-black'}`}>{preset}%</Text>
+                                        <Text className={`text-base font-bold `} style={{ color: isSelected ? (isDark ? Colors.dark.background : Colors.light.background) : (isDark ? Colors.dark.textPrimary : Colors.light.textPrimary)}}>{preset}%</Text>
                                     </Pressable>
                                 )
                             })}
                         </View>
                     </View>
-                    <Text className='text-xs font-bold text-gray-400 e mt-4'>Max Slippage Tolerance (e.g., 0.01 = ±1% Tolerance)</Text>
+                    <Text className='text-xs font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark e mt-4'>Max Slippage Tolerance (e.g., 0.01 = ±1% Tolerance)</Text>
                     <View className='flex-row gap-4 items-center mt-2 mb-6'>
-                        <View className="flex-row items-center justify-center border  border-gray-200 bg-gray-50 rounded-2xl px-4 py-1 "
+                        <View className="flex-row items-center justify-center border  border-aura-border dark:border-aura-border-dark bg-aura-surface dark:bg-aura-surface-dark rounded-2xl px-4 py-1 "
                             style={{ minWidth: 90 }}
                         >
                             <BottomSheetTextInput
@@ -290,9 +302,9 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                                 onChangeText={setSlippagePercent}
                                 placeholder="0"
                                 numberOfLines={1}
-                                className="text-lg font-bold text-gray-900  items-center justify-center"
+                                className="text-lg font-bold text-aura-text-primary dark:text-aura-text-primary-dark  items-center justify-center"
                             />
-                            <Text className="text-xl font-bold text-gray-900 mr-1">%</Text>
+                            <Text className="text-xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark mr-1">%</Text>
                         </View>
                         <View className='flex-row gap-1'>
                             {slippagePresets.map((preset) => {
@@ -302,8 +314,9 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                                         key={preset}
                                         onPress={() => setSlippagePercent(preset)}
                                         className={`px-6 py-3 rounded-full ${isSelected ? 'bg-black' : 'bg-gray-100'}`}
+                                        style={{ backgroundColor: isSelected ? (isDark ? Colors.dark.textPrimary : Colors.light.textPrimary) : (isDark ? Colors.dark.surface : Colors.light.surface)}}
                                     >
-                                        <Text className={`text-base font-bold ${isSelected ? 'text-white' : 'text-black'}`}>{preset}%</Text>
+                                        <Text className={`text-base font-bold`} style={{ color: isSelected ? (isDark ? Colors.dark.background : Colors.light.background) : (isDark ? Colors.dark.textPrimary : Colors.light.textPrimary)}}>{preset}%</Text>
                                     </Pressable>
                                 )
                             })}
@@ -313,10 +326,11 @@ const FollowSheet = forwardRef<FollowSheetRef, FollowSheetProps>(({ name, profil
                     <Pressable
                         onPress={() => followMutation.mutate()}
                         disabled={followMutation.isPending}
-                        className='bg-black py-4 rounded-xl items-center'
+                        className=' py-4 rounded-xl items-center '
+                        style={{ backgroundColor: isDark ? Colors.dark.primary : Colors.light.primary }}
                     >
                         {followMutation.isPending ? (
-                            <ActivityIndicator color={'#fff'} />
+                            <ActivityIndicator color={isDark ? Colors.dark.textPrimary : Colors.light.textPrimary}  />
                         ) : (
                             <Text className='text-white font-bold text-base'>Confirm and Start Copying</Text>
                         )}

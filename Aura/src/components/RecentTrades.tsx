@@ -6,6 +6,7 @@ import { formatTime } from '../utils/format'
 import { Image } from 'expo-image'
 import { Href, useRouter } from 'expo-router'
 import { getNextRun } from '@/utils/getNextRun'
+import { useTheme } from '@/lib/ThemeContext'
 
 const fetchTrades = async (token: string) => {
     const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/recentTrades`, {
@@ -34,6 +35,8 @@ const Shimmer = ({ className }: { className: string }) => {
 const RecentTrades = () => {
     const { token } = useAuthStore()
     const router = useRouter()
+    const { activeTheme } = useTheme()
+    const isDark = activeTheme === 'dark'
     const { data, isPending, error } = useQuery({
         queryKey: ['home', 'trades'],
         queryFn: () => fetchTrades(token),
@@ -47,8 +50,8 @@ const RecentTrades = () => {
     if (isPending) {
         return (
             <View className='mt-3 gap-3'>
-                <Shimmer className='w-full h-28 rounded-3xl bg-gray-200' />
-                <Shimmer className='w-full h-28 rounded-3xl bg-gray-200' />
+                <Shimmer className='w-full h-28 rounded-3xl bg-aura-surface-elevated dark:bg-aura-surface-elevated-dark' />
+                <Shimmer className='w-full h-28 rounded-3xl bg-aura-surface-elevated dark:bg-aura-surface-elevated-dark' />
             </View>
         )
     }
@@ -56,8 +59,8 @@ const RecentTrades = () => {
     if (trades.length === 0) {
         return (
             <View>
-                <Text className='text-xl font-semibold'>Recent Trades</Text>
-                <Text className='text-base text-gray-600 font-semibold mt-3'>Your recent trades will appear here.</Text>
+                <Text className='text-xl font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>Recent Trades</Text>
+                <Text className='text-base text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold mt-3'>Your recent trades will appear here.</Text>
             </View>
         )
     }
@@ -69,12 +72,21 @@ const RecentTrades = () => {
     return (
         <View className='gap-4 mt-3'>
             <View className='flex-row items-center justify-between'>
-                <Text className='text-xl font-semibold'>Recent Trades</Text>
+                <Text className='text-xl font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>Recent Trades</Text>
                 {<Pressable
                     onPress={() => router.navigate('/(trade)/Trade')}
-                    className=' rounded-xl py-1 px-3 active:bg-gray-100'
+                    className=' rounded-xl py-1 px-3'
+                    style={({ pressed }) => [
+                        pressed && {
+                            backgroundColor: 'var(--aura-surface)',
+                        }
+                    ]}
                 >
-                    <Text className=' font-semibold text-[#476eda]'>See all</Text>
+                    {({ pressed }) => (
+                        <View className={`rounded-xl py-1 px-3 ${pressed ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-transparent'}`}>
+                            <Text className='font-semibold text-aura-primary'>See all</Text>
+                        </View>
+                    )}
                 </Pressable>}
             </View>
             {trades && trades.length > 0 && (
@@ -89,7 +101,7 @@ const RecentTrades = () => {
 
                     return (
                         <Pressable
-                            className={`flex-row items-center  bg-zinc-100 gap-3 rounded-3xl p-6 ${isSkipped ? 'opacity-70 border border-dashed' : ''}`}
+                            className={`flex-row items-center  bg-aura-surface dark:bg-aura-surface-dark gap-3 rounded-3xl p-6 ${isSkipped ? 'opacity-70 border border-dashed border-aura-border-dark dark:border-aura-border' : ''}`}
                             key={item._id}
                             onPress={() => handleOnPress(id, item.status)}
                         >
@@ -100,16 +112,16 @@ const RecentTrades = () => {
                                 />
                             </View>
                             <View className='flex-1 ml-3 pr-2 gap-y-0.6'>
-                                <Text numberOfLines={1} className='text-base font-bold tracking-tight'>{name}</Text>
-                                <Text className='text-xs text-gray-600 font-semibold' numberOfLines={1}>
+                                <Text numberOfLines={1} className='text-base font-bold tracking-tight text-aura-text-primary dark:text-aura-text-primary-dark'>{name}</Text>
+                                <Text className='text-xs text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold' numberOfLines={1}>
                                     {item.side === 'Buy' ? 'Bought' : 'Sold'}
                                     {' '}{(item.quantity).toLocaleString('en-IN')} shares of
-                                    <Text className='text-base font-bold text-black'> {item.symbol}</Text>
+                                    <Text className='text-base font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark'> {item.symbol}</Text>
                                 </Text>
                             </View>
                             <View className='shrink-0 gap-y-1 items-end'>
-                                <Text className='text-sm font-bold text-gray-600 uppercase tracking-wider'>{formatTime(item.createdAt)}</Text>
-                                <Text className='text-sm font-extrabold'>₹{totalValue ? totalValue.toLocaleString('en-IN') : '0'}</Text>
+                                <Text className='text-sm font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark uppercase tracking-wider'>{formatTime(item.createdAt)}</Text>
+                                <Text className='text-sm font-extrabold text-aura-text-primary dark:text-aura-text-primary-dark'>₹{totalValue ? totalValue.toLocaleString('en-IN') : '0'}</Text>
                             </View>
                         </Pressable>
                     )

@@ -8,6 +8,8 @@ import { Image } from 'expo-image'
 import { formatTime } from '@/utils/format'
 import SegmentedControl from '@react-native-segmented-control/segmented-control'
 import { MenuView } from '@expo/ui/community/menu'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 interface Trade {
     _id: string,
@@ -45,6 +47,7 @@ const fetchTrades = async (token: string, pageParam = 1, pageSize = 10, status?:
 
 const renderTradeItem = ({ item }: { item: Trade }) => {
     const router = useRouter()
+    
     const symbol = item.symbol
     const profileImage = item?.profileId?.profileImage
     const name = item?.symbol
@@ -59,23 +62,23 @@ const renderTradeItem = ({ item }: { item: Trade }) => {
     }
     return (
         <Pressable
-            className={`flex-row items-center  bg-zinc-100 gap-3 rounded-3xl p-6 ${isSkipped ? 'opacity-70 border border-dashed' : ''}`}
+            className={`flex-row items-center  bg-aura-surface dark:bg-aura-surface-dark gap-3 rounded-3xl p-6 ${isSkipped ? 'opacity-70 border border-dashed dark:border-aura-bg' : ''}`}
             onPress={() => handleTradePress()}
         >
             <View className='w-14 h-14 rounded-full shrink-0'>
                 <Image source={item ? { uri: profileImage } : undefined} style={{ width: '100%', height: '100%', borderRadius: 100 }} />
             </View>
             <View className='flex-1 ml-3 pr-2 gap-y-0.6'>
-                <Text numberOfLines={1} className='text-base font-bold tracking-tight'>{name}</Text>
-                <Text className='text-xs text-gray-600 font-semibold' numberOfLines={1}>
+                <Text numberOfLines={1} className='text-base font-bold tracking-tight text-aura-text-primary dark:text-aura-text-primary-dark'>{name}</Text>
+                <Text className='text-xs text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold' numberOfLines={1}>
                     {item.side === 'Buy' ? 'Bought' : 'Sold'}
                     {' '}{item.quantity} shares of
-                    <Text className='text-base font-bold text-black'> {item.symbol}</Text>
+                    <Text className='text-base font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark'> {item.symbol}</Text>
                 </Text>
             </View>
             <View className='shrink-0 gap-y-1 items-end'>
-                <Text className='text-sm font-bold text-gray-600 uppercase tracking-wider'>{formatTime(item.createdAt)}</Text>
-                <Text className='text-sm font-extrabold'>₹{totalValue ? totalValue.toLocaleString('en-IN') : '0'}</Text>
+                <Text className='text-sm font-bold text-aura-text-secondary dark:text-aura-text-secondary-dark uppercase tracking-wider'>{formatTime(item.createdAt)}</Text>
+                <Text className='text-sm font-extrabold text-aura-text-primary dark:text-aura-text-primary-dark'>₹{totalValue ? totalValue.toLocaleString('en-IN') : '0'}</Text>
             </View>
         </Pressable>
     )
@@ -96,7 +99,7 @@ const Shimmer = ({ className }: { className: string }) => {
 }
 const TradeSkeleton = () => (
     <View key={'trade-detail'}>
-        <Shimmer className='bg-gray-200 w-full h-28 rounded-3xl ' />
+        <Shimmer className='bg-aura-surface-elevated dark:bg-aura-surface-elevated-dark w-full h-28 rounded-3xl ' />
     </View>
 )
 const FILTER_OPTIONS: { label: string, value: FilterStatus }[] = [
@@ -107,6 +110,8 @@ const FILTER_OPTIONS: { label: string, value: FilterStatus }[] = [
 ]
 const Trade = () => {
     const router = useRouter()
+    const { activeTheme } = useTheme()
+    const isDark = activeTheme === 'dark'
     const params = useLocalSearchParams<{ initialStatus?: FilterStatus }>()
     const { token } = useAuthStore()
     const [activeFilter, setActiveFilter] = useState<FilterStatus>(params.initialStatus || 'all')
@@ -114,7 +119,7 @@ const Trade = () => {
     const [profile, setProfile] = useState('')
     const [searchQuery, setSearchQuery] = useState('')
     const [isFocused, setIsFocused] = useState(false)
-    const {profileName} = useLocalSearchParams<{profileName: string}>()
+    const { profileName } = useLocalSearchParams<{ profileName: string }>()
 
     useEffect(() => {
         const handler = setTimeout(() => {
@@ -125,8 +130,8 @@ const Trade = () => {
         return () => clearTimeout(handler)
     }, [searchQuery])
 
-    useEffect(()=>{
-        if(profileName){
+    useEffect(() => {
+        if (profileName) {
             const resolveName = Array.isArray(profileName) ? profileName[0] : profileName
             setProfile(resolveName)
         }
@@ -175,21 +180,31 @@ const Trade = () => {
             className='mx-6 mt-4'
         >
             <View className='realtive mb-3 flex-row items-center justify-between'>
-                <Pressable onPress={() => router.back()} className='z-10'>
-                    <ArrowLeft />
+                <Pressable onPress={() => router.back()} className='z-10 ' style={({ pressed }) => [
+                    pressed && {
+                        backgroundColor: 'var(--aura-surface)',
+                    }
+                ]}
+                >
+                    {({ pressed }) => (
+                        <View className={`rounded-full p-1 ${pressed ? 'bg-aura-surface dark:bg-aura-surface-dark' : 'bg-transparent'}`}>
+                            <ArrowLeft color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
+                        </View>
+                    )}
                 </Pressable>
                 <View className='absolute inset-0 items-center justify-center pointer-events-none'>
-                    <Text className='text-xl font-bold'>Trade</Text>
+                    <Text className='text-xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark'>Trade</Text>
                 </View>
             </View>
 
-            <View className={`flex-row border bg-gray-100 rounded-full items-center px-3 py-1 mt-3 gap-1 ${isFocused ? 'border-black' : 'border-gray-300'}`}>
-                <Search />
+            <View className={`flex-row border bg-aura-surface dark:bg-aura-surface-dark rounded-full items-center px-3 py-1 mt-3 gap-1 ${isFocused ? 'border-aura-primary dark:border-aura-primary' : 'border-gray-300'}`}>
+                <Search color={isDark ? Colors.dark.textPrimary : Colors.light.textPrimary} />
                 <TextInput
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     placeholder='Search tickers...'
-                    className='flex-1 text-base py-2'
+                    placeholderTextColor={isDark ? Colors.dark.textSecondary : Colors.light.textSecondar}
+                    className='flex-1 text-base py-2 text-aura-text-primary dark:text-aura-text-primary-dark'
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
                     autoCorrect={false}
@@ -197,7 +212,7 @@ const Trade = () => {
                 />
                 {searchQuery.length > 0 && (
                     <Pressable onPress={() => setSearchQuery('')} hitSlop={8}>
-                        <Text className='text-gray-400 text-lg px-1'>✕</Text>
+                        <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark text-lg px-1'>✕</Text>
                     </Pressable>
                 )}
             </View>
@@ -211,25 +226,26 @@ const Trade = () => {
                             const index = e.nativeEvent.selectedSegmentIndex
                             setActiveFilter(FILTER_OPTIONS[index].value)
                         }}
-                        backgroundColor='#e0e0e0'
-                        tintColor='#eeeeee'
-                        appearance='dark'
-                        fontStyle={{ color: "black" }}
+                        backgroundColor={isDark ? Colors.dark.surface : Colors.light.surface}
+                        tintColor={isDark ? Colors.dark.background : Colors.light.background}
+                        appearance={isDark ? 'dark' : 'light'}
+                        fontStyle={{ color: isDark ? Colors.dark.textSecondary : Colors.light.textSecondary, fontFamily: 'Aura-Medium' }}
+                        activeFontStyle={{ color: isDark ? Colors.dark.textPrimary : Colors.light.textPrimary, fontFamily: 'Aura-Bold'}}
                         style={{ height: 40 }}
                     />
                 </View>
                 {/* <Pressable className='rounded-md active:bg-gray-100 p-1'> */}
                 <MenuView
                     actions={[
-                        { id: 'The Insider', title: 'The Insider' },
-                        { id: 'The Whale', title: 'The Whale' },
-                        { id: 'The Technician', title: 'The Technician' },
-                        { id: 'The Momentum chaser', title: 'The Momentum chaser' }
+                        { id: 'The Insider', title: 'The Insider', state: profile === 'The Insider' ? 'on' : 'off' },
+                        { id: 'The Whale', title: 'The Whale', state: profile === 'The Whale' ? 'on' : 'off' },
+                        { id: 'The Technician', title: 'The Technician', state: profile === 'The Technician' ? 'on' : 'off' },
+                        { id: 'The Momentum chaser', title: 'The Momentum chaser', state: profile === 'The Momentum chaser' ? 'on' : 'off' }
                     ]}
                     onPressAction={({ nativeEvent }) => setProfile(nativeEvent.event)}
                 >
-                    <View>
-                        <ListFilter />
+                    <View className='rounded-xl p-2 bg-aura-surface dark:bg-aura-surface-dark active:bg-aura-bg-alt dark:active:bg-aura-bg-alt-dark'>
+                        <ListFilter color={profile ? (isDark ? Colors.dark.primary : Colors.light.primary) : (isDark ? Colors.dark.textSecondary : Colors.light.textSecondary)} />
                     </View>
                 </MenuView>
                 {/* </Pressable> */}
@@ -237,11 +253,11 @@ const Trade = () => {
             </View>
             {profile && (
                 <Pressable
-                    className='flex-row bg-gray-100 px-3 mt-3 py-1 rounded-xl  items-center gap-1 self-start '
+                    className='flex-row bg-aura-surface dark:bg-aura-surface-dark px-3 mt-3 py-1 rounded-xl  items-center gap-1 self-start '
                     onPress={() => setProfile('')}
                 >
-                    <Text className='text-base font-semibold'>{profile}</Text>
-                    <X size={20} />
+                    <Text className='text-base font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>{profile}</Text>
+                    <X size={20} color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
                 </Pressable>
             )}
 
@@ -251,7 +267,7 @@ const Trade = () => {
                 renderItem={isPending ? () => <TradeSkeleton /> : renderTradeItem}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
-                    <RefreshControl refreshing={isRefetching} onRefresh={refetch} />
+                    <RefreshControl refreshing={isRefetching} onRefresh={refetch} colors={[isDark ? Colors.light.primary : Colors.dark.primary]} tintColor={isDark ? Colors.light.primary : Colors.dark.primary} />
                 }
                 onEndReached={() => {
                     if (hasNextPage && !isFetchingNextPage) fetchNextPage()
@@ -261,14 +277,14 @@ const Trade = () => {
                 ListFooterComponent={
                     isFetchingNextPage ? (
                         <View className='py-4 items-center justify-center'>
-                            <ActivityIndicator />
+                            <ActivityIndicator color={isDark ? Colors.light.primary : Colors.dark.primary} />
                         </View>
                     ) : null
                 }
                 ListEmptyComponent={
                     !isPending && trades.length === 0 ? (
                         <View className=' items-center justify-center'>
-                            <Text className=''>No Trades Yet.</Text>
+                            <Text className='text-aura-text-secondary dark:text-aura-text-secondary-dark'>No Trades Yet.</Text>
                         </View>
                     ) : null
                 }

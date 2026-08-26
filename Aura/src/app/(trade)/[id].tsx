@@ -7,6 +7,8 @@ import { ArrowLeft, ArrowUpRight } from 'lucide-react-native'
 import { LineChart } from 'react-native-gifted-charts'
 import { Image } from 'expo-image'
 import formatFollowers from '@/utils/format'
+import { useTheme } from '@/lib/ThemeContext'
+import { Colors } from '@/constants/Colors'
 
 const fetchTrade = async (token: string, id: string) => {
     const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/trade/${id}`, {
@@ -61,8 +63,9 @@ const TradeSkeleton = ({ router, width, isSkipped }: { router: any, width: numbe
                 <View className='w-full h-36 bg-gray-200 animate-pulse rounded-3xl mt-3' />
             </View>
         )}
-        
-                <View className='w-40 h-20 rounded-3xl bg-gray-200 mt-3 animate-pulse' />
+
+        <View className='w-56 h-20 rounded-3xl bg-gray-200 mt-3 animate-pulse' />
+        {isSkipped ? null : <View className='w-56 h-20 rounded-3xl bg-gray-200 mt-3 animate-pulse' />}
 
         <View className='mt-6'>
             <Text className='text-xl font-semibold'>Copy Source</Text>
@@ -85,6 +88,8 @@ const TradeDetail = () => {
     const id = typeof paramsId === 'string' ? paramsId : ''
     const { token } = useAuthStore()
     const { width } = useWindowDimensions()
+    const { activeTheme } = useTheme()
+    const isDark = activeTheme === 'dark'
     const router = useRouter()
     const { data, isPending, error } = useQuery({
         queryKey: ['home', 'trade', id],
@@ -121,7 +126,7 @@ const TradeDetail = () => {
     const displayStatus = tradeStatus.charAt(0).toUpperCase() + tradeStatus.slice(1)
 
     const isPositive = unrealizedPnl >= 0
-    const colorClass = isSkipped ? 'text-black' : Pnl === 0 ? 'text-gray-900' : Pnl > 0 ? 'text-green-600' : 'text-red-600'
+    const colorClass = isSkipped ? 'text-aura-text-primary dark:text-aura-text-primary-dark' : Pnl === 0 ? 'text-aura-text-primary dark:text-aura-text-primary-dark' : Pnl > 0 ? 'text-aura-positive' : 'text-aura-negative'
     const chartPoints = data?.returns || []
     const isReturnsPending = data?.isPending || false
     const profileImage = trade?.profile?.profileImage
@@ -143,12 +148,12 @@ const TradeDetail = () => {
                 <Pressable
                     onPress={() => router.back()}
                     hitSlop={{ top: 20, right: 20, left: 20, bottom: 20 }}
-                    className='p-2 -ml-2'
+                    className='p-2 -ml-2 rounded-full active:bg-aura-surface dark:active:bg-aura-surface-dark'
                 >
-                    <ArrowLeft />
+                    <ArrowLeft color={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary} />
                 </Pressable>
                 <View className='flex-1 justify-center items-center'>
-                    <Text className='font-semibold text-xl'>{trade.symbol || 'Trade Details'}</Text>
+                    <Text className='font-semibold text-xl text-aura-text-primary dark:text-aura-text-primary-dark'>{trade.symbol || 'Trade Details'}</Text>
                 </View>
                 <View className='w-9' />
             </View>
@@ -156,13 +161,13 @@ const TradeDetail = () => {
             <View className='mt-6'>
                 <View className='flex-row items-end justify-between'>
                     <View>
-                        <Text className='font-semibold text-gray-600'>{isSkipped ? 'Order' : 'P&L'}</Text>
+                        <Text className='font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>{isSkipped ? 'Order' : 'P&L'}</Text>
                         <Text className={`text-3xl font-aura-bold mt-1 ${colorClass}`}>
                             {isSkipped ? 'Not Executed' : Pnl >= 0 ? '+' : '-'} {isSkipped ? '' : `₹${absPnl.toFixed(2)}`}
                         </Text>
                     </View>
-                    <View className={`py-1 px-3 rounded-lg ${isSkipped ? 'bg-gray-100' : isTradeOpen ? 'bg-green-100' : 'bg-red-100'}`}>
-                        <Text className={`font-aura-bold ${isSkipped ? 'text-gray-700' : isTradeOpen ? 'text-green-600' : 'text-red-600'}`}>{displayStatus}</Text>
+                    <View className={`py-1 px-3 rounded-xl ${isSkipped ? 'bg-aura-surface dark:bg-aura-surface-dark' : isTradeOpen ? 'bg-aura-positive/10' : 'bg-aura-negative/10'}`}>
+                        <Text className={`font-aura-bold ${isSkipped ? 'text-aura-text-secondary dark:text-aura-text-secondary-dark' : isTradeOpen ? 'text-aura-positive' : 'text-aura-negative'}`}>{displayStatus}</Text>
                     </View>
                 </View>
 
@@ -171,27 +176,27 @@ const TradeDetail = () => {
             {!isSkipped ? (
                 <View className='mt-3'>
                     {/* <Text className='text-xl font-semibold'>Your paper position</Text> */}
-                    <View className='flex-row items-center justify-between bg-gray-100 p-6 rounded-3xl mt-3'>
+                    <View className='flex-row items-center justify-between bg-aura-surface dark:bg-aura-surface-dark p-6 rounded-3xl mt-3'>
                         <View className='gap-4'>
                             <View>
-                                <Text className='text-sm font-semibold text-gray-600'>Shares Owned</Text>
-                                <Text className='font-aura-bold'>{trade.quantity}</Text>
+                                <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Shares Owned</Text>
+                                <Text className='font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>{trade.quantity}</Text>
                             </View>
                             <View>
-                                <Text className='text-sm font-semibold text-gray-600'>Total Value</Text>
-                                <Text className='font-aura-bold'>₹{totalValue.toFixed(2)}</Text>
+                                <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Total Value</Text>
+                                <Text className='font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>₹{totalValue.toFixed(2)}</Text>
                             </View>
                         </View>
                         <View className='gap-4 '>
                             <View className='flex-1 items-end'>
-                                <Text className='text-sm font-semibold text-gray-600'>Avg Cost</Text>
-                                <Text className='font-aura-bold'>₹{avgPrice.toFixed(2)}</Text>
+                                <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>Avg Cost</Text>
+                                <Text className='font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>₹{avgPrice.toFixed(2)}</Text>
                             </View>
                             <View className='flex-1 items-end'>
-                                <Text className='text-sm font-semibold text-gray-600'>
+                                <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>
                                     {isTradeOpen ? 'Current Price' : 'Exit Price'}
                                 </Text>
-                                <Text className={` font-aura-bold `}>
+                                <Text className={` font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark`}>
                                     ₹{(isTradeOpen ? (currentPrice).toFixed(2) : isSkipped ? 'N/A' : (exitPrice).toFixed(2))}
                                 </Text>
                             </View>
@@ -199,32 +204,36 @@ const TradeDetail = () => {
                     </View>
                 </View>
             ) : (
-                <View className='mt-6 p-6 bg-gray-100 rounded-3xl'>
-                    <Text className='text-sm text-gray-600 font-semibold'>Rejection reason</Text>
-                    <Text className='text-base mt-3 font-semibold'>{rejectionReason}</Text>
+                <View className='mt-6 p-6 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl'>
+                    <Text className='text-sm text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold'>Rejection reason</Text>
+                    <Text className='text-base mt-3 font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>{rejectionReason}</Text>
                 </View>
             )}
 
 
-            <View className='flex-row mt-3 gap-3'>
-                <View className='p-6 bg-gray-100 rounded-3xl'>
-                    <Text className='text-xs text-gray-600 font-semibold'>Opened At</Text>
-                    <Text className='font-aura-bold'>
+            <View className='flex-row mt-3 gap-3 flex-wrap'>
+                <View className='p-6 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl'>
+                    <Text className='text-xs text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold'>Opened At</Text>
+                    <Text className='font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>
                         {openDate?.toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
-                            year: 'numeric'
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: 'numeric'
                         })}
                     </Text>
                 </View>
                 {tradeStatus === 'closed' && (
-                    <View className='p-6 bg-gray-100 rounded-3xl'>
-                        <Text className='text-xs text-gray-600 font-semibold'>Closed At</Text>
-                        <Text className='font-aura-bold'>
+                    <View className='p-6 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl'>
+                        <Text className='text-xs text-aura-text-secondary dark:text-aura-text-secondary-dark font-semibold'>Closed At</Text>
+                        <Text className='font-aura-bold text-aura-text-primary dark:text-aura-text-primary-dark'>
                             {closedDate?.toLocaleDateString('en-IN', {
                                 day: 'numeric',
                                 month: 'short',
-                                year: 'numeric'
+                                year: 'numeric',
+                                hour: 'numeric',
+                                minute: 'numeric'
                             })}
                         </Text>
                     </View>
@@ -232,8 +241,8 @@ const TradeDetail = () => {
             </View>
 
             <View className='mt-6'>
-                <Text className='text-xl font-semibold'>Copy Source</Text>
-                <View className='flex-row items-center mt-3 gap-3 bg-gray-100 rounded-3xl p-6'>
+                <Text className='text-xl font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>Copy Source</Text>
+                <View className='flex-row items-center mt-3 gap-3 bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6'>
                     <View className='w-14 h-14'>
                         <Image
                             source={profileImage ? { uri: profileImage as string } : undefined}
@@ -241,8 +250,8 @@ const TradeDetail = () => {
                         />
                     </View>
                     <View>
-                        <Text className='text-base font-semibold '>{profileName || 'Unkown Profile'}</Text>
-                        <Text className='text-sm font-semibold text-gray-600'>
+                        <Text className='text-base font-semibold text-aura-text-primary dark:text-aura-text-primary-dark'>{profileName || 'Unkown Profile'}</Text>
+                        <Text className='text-sm font-semibold text-aura-text-secondary dark:text-aura-text-secondary-dark'>
                             {isSkipped ? 'Tried to ' : ''}{trade.side === 'Buy' ? isSkipped ? 'buy' : 'Bought' : isSkipped ? 'sell' : 'Sold'} {trade.quantity} shares of {trade.symbol}
                         </Text>
                     </View>
