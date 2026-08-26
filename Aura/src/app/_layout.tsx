@@ -46,24 +46,24 @@ const AppStateTracker = () => {
   }, [])
   return null
 }
- function NavigationContent() {
-    const { activeTheme } = useTheme()
-    const isDark = activeTheme === 'dark'
-    const currentTheme = isDark ? AuraDarkTheme : AuraLightTheme
+function NavigationContent() {
+  const { activeTheme } = useTheme()
+  const isDark = activeTheme === 'dark'
+  const currentTheme = isDark ? AuraDarkTheme : AuraLightTheme
 
-    return (
-      <ThemeProvider value={isDark ? AuraDarkTheme : AuraLightTheme}>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: currentTheme.colors.background } }}>
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen name="(profile)" />
-          <Stack.Screen name="(position)" />
-          <Stack.Screen name="(trade)" />
-        </Stack>
-        <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#0A0B0D' : '#fff'} />
-      </ThemeProvider>
-    )
-  }
+  return (
+    <ThemeProvider value={isDark ? AuraDarkTheme : AuraLightTheme}>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: currentTheme.colors.background } }}>
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(profile)" />
+        <Stack.Screen name="(position)" />
+        <Stack.Screen name="(trade)" />
+      </Stack>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#0A0B0D' : '#fff'} />
+    </ThemeProvider>
+  )
+}
 const AuraLightTheme = {
   ...DefaultTheme,
   colors: {
@@ -202,13 +202,16 @@ export default function RootLayout() {
     if (!isAppReady || isCheckingAuth || !fontsLoaded) return
 
     if (fontsErr) console.log('Error loading in fonts', fontsErr)
+
     const inAuthScreen = segments[0] === '(auth)'
     const isSignedIn = user && token
+    const needsOnboarding = isSignedIn && user?.hasOnboarded !== true
 
-
-
-    if (!inAuthScreen && !isSignedIn) router.replace('/(auth)')
-    else if (inAuthScreen && isSignedIn) router.replace('/(tabs)')
+    if (inAuthScreen && !isSignedIn && needsOnboarding) router.replace('/(onboarding)')
+    else if (isSignedIn && needsOnboarding && segments[0] !== '(onboarding)') router.replace('/(onboarding)')
+    else if (!inAuthScreen && !isSignedIn) router.replace('/(auth)')
+    // else if(isSignedIn && !needsOnboarding && segments[0])
+    else if (inAuthScreen && isSignedIn && !needsOnboarding || segments[0] === '(onboarding)') router.replace('/(tabs)')
 
     SplashScreen.hideAsync().catch(console.warn)
   }, [user, token, router, segments, isCheckingAuth, fontsLoaded, fontsErr, isAppReady])
@@ -220,7 +223,7 @@ export default function RootLayout() {
     return <View />
   }
 
- 
+
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

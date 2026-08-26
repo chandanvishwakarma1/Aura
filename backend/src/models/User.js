@@ -27,7 +27,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
-    deviceToken:{
+    deviceToken: {
         type: String,
         default: null
     },
@@ -39,7 +39,23 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 10000000
     },
-    initialCapital:{
+    hasOnboarded: {
+        type: Boolean,
+        default: false,
+    },
+    onBoardedAt: {
+        type: Date,
+    },
+    experience: {
+        type: String,
+        enum: ['new', 'some,', 'experienced', 'professional'],
+    },
+    riskAppetite: {
+        type: String,
+        enum: ['conservative', 'balanced', 'growth', 'aggressive']
+    },
+    goal: { type: String, enum:['learn trading', 'improve trading', 'just exploring'], default: [] },
+    initialCapital: {
         type: Number,
         default: 10000000
     },
