@@ -203,7 +203,7 @@ const Trade = () => {
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     placeholder='Search tickers...'
-                    placeholderTextColor={isDark ? Colors.dark.textSecondary : Colors.light.textSecondar}
+                    placeholderTextColor={isDark ? Colors.dark.textSecondary : Colors.light.textSecondary}
                     className='flex-1 text-base py-2 text-aura-text-primary dark:text-aura-text-primary-dark'
                     onFocus={() => setIsFocused(true)}
                     onBlur={() => setIsFocused(false)}
