@@ -3,7 +3,7 @@ import profileController from '../controller/profileController.js'
 import protectedRoute from '../middleware/auth.middleware.js'
 const router = express.Router()
 
-router.get('/', protectedRoute, profileController.getProfiles)
+router.get('/', profileController.getProfiles)
 router.get('/:id', protectedRoute, profileController.getProfileById)
 router.get('/:id/returns', protectedRoute, profileController.getProfileReturns)
 router.post('/follow/:id', protectedRoute, profileController.postFollow)

@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema({
     },
     experience: {
         type: String,
-        enum: ['new', 'some,', 'experienced', 'professional'],
+        enum: ['new', 'some', 'experienced', 'professional'],
     },
     riskAppetite: {
         type: String,
