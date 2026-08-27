@@ -16,7 +16,7 @@ const sendNotification = async(expoPushToken, title, body, data = {}) => {
     }
 
     try {
-        const res = await fetch('https://expo.host/--/api/v2/push/send', {
+        const res = await fetch('https://exp.host/--/api/v2/push/send', {
             method: 'POST',
             headers: {
                 Accept: 'application/json',
