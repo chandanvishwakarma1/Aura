@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
     },
     hasOnboarded: {
         type: Boolean,
-        default: false,
+        default: true,
     },
     onBoardedAt: {
         type: Date,
@@ -54,7 +54,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['conservative', 'balanced', 'growth', 'aggressive']
     },
-    goal: { type: String, enum:['learn trading', 'improve trading', 'just exploring'], default: [] },
+    goal: { type: String, enum:['learn_trading', 'improve_trading', 'just_exploring'], default: [] },
     initialCapital: {
         type: Number,
         default: 10000000

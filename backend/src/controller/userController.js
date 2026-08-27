@@ -649,6 +649,7 @@ const postNotificationPref = async (req, res, next) => {
     }
 }
 
+
 const userController = {
     checkUsername,
     getPortfolioSummary,
@@ -662,7 +663,7 @@ const userController = {
     getFollowByProfileId,
     postDeviceToken,
     postNotificationPref,
-    postTradeNotification
+    postTradeNotification,
 }
 
 export default userController;
