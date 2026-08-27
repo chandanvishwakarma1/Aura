@@ -618,7 +618,9 @@ const postTradeNotification = async (req, res, next) => {
         const data = { tradeId: tradeId ? tradeId.toString() : '' }
 
         const result = await sendNotification(user.deviceToken, title, body, data)
-        console.log("result mess: ", result)
+        if(!result?.data) return res.status(502).json({ success: false, message: "Expo push request failed"})
+            
+        if(result.data.status !== 'ok') return res.json({ success: false, message: result.message || "Something went wrong"})
         return res.json({ success: true, message: "Notification triggered" })
     } catch (error) {
         console.log("Error in notification trigger: ", error)
