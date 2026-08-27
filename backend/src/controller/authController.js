@@ -76,7 +76,7 @@ const postRegister = async (req, res, next) => {
             profileImage,
             isVerified,
             verifiedAt: isVerified ? new Date() : null,
-            hasOnBoarded: true
+            hasOnboarded: true
         });
 
         await user.save();
