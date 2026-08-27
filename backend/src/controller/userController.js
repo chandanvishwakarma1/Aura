@@ -611,13 +611,14 @@ const postTradeNotification = async (req, res, next) => {
             return res.json({ success: true, message: "Notifications disabled for this user - skipped" })
         }
 
-        const title = `Trade executed: ${side.toUpperCase()} ${symbol}`
+        const title = `Trade: ${side.toUpperCase()} ${symbol}`
         let body=''
         if(side  === 'Buy') body = `You bought ${quantity} shares of ${symbol} at ₹${price}`
         else if(side === 'Sell') body = `You Sold ${quantity} shares of ${symbol} at ₹${price} (P&L: ₹${pnl})`
         const data = { tradeId: tradeId ? tradeId.toString() : '' }
 
-        await sendNotification(user.deviceToken, title, body, data)
+        const result = await sendNotification(user.deviceToken, title, body, data)
+        console.log("result mess: ", result)
         return res.json({ success: true, message: "Notification triggered" })
     } catch (error) {
         console.log("Error in notification trigger: ", error)
