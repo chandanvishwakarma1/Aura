@@ -17,7 +17,8 @@ interface ProfileItem {
     followCount: number
 }
 interface Profile {
-    item: ProfileItem
+    item: ProfileItem,
+    fromOnboarding?: boolean
 }
 const fetchProfilesReturns = async (token: string, id: string) => {
     const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/profile/${id}/returns`, {
@@ -45,7 +46,7 @@ const Shimmer = ({ className }: { className: string }) => {
     return <Animated.View style={{ opacity }} className={className} />
 }
 
-const ProfileCard = ({ item }: Profile) => {
+const ProfileCard = ({ item, fromOnboarding }: Profile) => {
     const { token } = useAuthStore()
     const router = useRouter()
     const { activeTheme } = useTheme()
@@ -63,18 +64,24 @@ const ProfileCard = ({ item }: Profile) => {
 
     const handlePress = () => {
         const id = item._id
+        // const params = 
         router.navigate(`/(profile)/${id}` as Href)
     }
     const latestReturns = profileReturnsData.length > 0 ? profileReturnsData[profileReturnsData.length - 1].value : 0
-    if (latestReturns < 0) return null
+    if (latestReturns < 0 && !fromOnboarding) {
+        return null
+    }
     const isPositive = latestReturns >= 0
 
+    const CustomView = fromOnboarding ? View : Pressable
+    const CustomViewProps = fromOnboarding ? {} : {onPress : handlePress}
+
     return (
-        <Pressable
+        <CustomView
             key={item._id}
-            className='justify-between bg-aura-surface dark:bg-aura-surface-dark rounded-3xl p-6 min-w-[160px] active:opacity-70 gap-6'
-            style={{ width: cardWidth }}
-            onPress={handlePress}
+            {...CustomViewProps}
+            className={`justify-between bg-aura-surface dark:bg-aura-surface-dark rounded-3xl active:opacity-70 ${fromOnboarding ? 'p-6 gap-3' : 'p-6 min-w-[160px] gap-6'}`}
+            style={!fromOnboarding ? { width: cardWidth } : undefined}
         >
             <View className='flex-row justify-between'>
                 <View className='w-14 h-14'>
@@ -94,18 +101,18 @@ const ProfileCard = ({ item }: Profile) => {
                     <View className='flex-row items-end mt-3'>
                         <View className='-ml-1'>
                             {latestReturns > 0 && (
-                                <ArrowUpRight size={30} color={isDark ? Colors.dark.positive : Colors.light.positive} />
+                                <ArrowUpRight size={fromOnboarding ? 24 : 30} color={isDark ? Colors.dark.positive : Colors.light.positive} />
                             )}
                             {latestReturns < 0 && (
-                                <ArrowDownRight size={30} color={isDark ? Colors.dark.negative : Colors.light.negative} />
+                                <ArrowDownRight size={fromOnboarding ? 24 : 30} color={isDark ? Colors.dark.negative : Colors.light.negative} />
                             )}
                         </View>
-                        <Text className={`text-2xl font-bold ${latestReturns > 0 ? 'text-aura-positive' : latestReturns < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>{latestReturns > 0 ? '+' : ''}{latestReturns}% </Text>
-                        <Text className={`text-xs  pb-1 font-semibold ${latestReturns > 0 ? 'text-aura-positive' : latestReturns < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>(30d)</Text>
+                        <Text className={`${fromOnboarding ? 'text-lg' : 'text-xl'}  font-bold ${latestReturns > 0 ? 'text-aura-positive' : latestReturns < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>{latestReturns > 0 ? '+' : ''}{latestReturns}% </Text>
+                        <Text className={`${fromOnboarding ? 'text-xs' : 'text-xs'}   pb-1 font-semibold ${latestReturns > 0 ? 'text-aura-positive' : latestReturns < 0 ? 'text-aura-negative' : 'text-aura-text-secondary dark:text-aura-text-secondary-dark'}`}>(30d)</Text>
                     </View>
                 )}
             </View>
-        </Pressable>
+        </CustomView>
     )
 }
 
