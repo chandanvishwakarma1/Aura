@@ -14,13 +14,22 @@ export const useAuthStore = create((set) => ({
     user: null,
     token: null,
     isLoading: false,
+    hasAccount: false,
+    // Local marker that the user has completed the pre-auth onboarding intro.
+    // Distinct from backend `user.hasOnboarded`, which only exists after sign-up.
+    hasSeenOnboarding: false,
     isCheckingAuth: true,
     setUser: (updatedUser) => {
         set({ user: updatedUser })
         if (updatedUser) AsyncStorage.setItem("user", JSON.stringify(updatedUser)).catch(e => console.log("Error persisting user", e))
     },
 
-    register: async (otp, username, email, password, fullName) => {
+    completeOnboarding: () => {
+        set({ hasSeenOnboarding: true })
+        AsyncStorage.setItem("hasSeenOnboarding", "true").catch(e => console.log("Error persisting onboarding flag", e))
+    },
+
+    register: async (otp, username, email, password, fullName, onboarding = {}) => {
         set({ isLoading: true })
         try {
             console.log(process.env.EXPO_PUBLIC_BACKEND_URL)
@@ -34,13 +43,19 @@ export const useAuthStore = create((set) => ({
                     username,
                     fullName,
                     email,
-                    password
+                    password,
+                    experience: onboarding.experience,
+                    riskAppetite: onboarding.riskAppetite,
+                    capital: onboarding.capital,
+                    goal: onboarding.goal,
+                    profileIds: onboarding.profileIds,
                 })
             })
             const data = await response.json()
             if (!response.ok) throw new Error(data.message || 'Something went wrong')
 
             await AsyncStorage.setItem("user", JSON.stringify(normalizeUser(data.user)))
+            await AsyncStorage.setItem("hasAccount", "true")
             await SecureStore.setItemAsync("token", data.token)
 
             set({
@@ -80,6 +95,7 @@ export const useAuthStore = create((set) => ({
             if(!reponse.ok) throw new Error( data.message || 'Something went wrong')
 
             await AsyncStorage.setItem("user", JSON.stringify(normalizeUser(data.user)))
+            await AsyncStorage.setItem("hasAccount", "true")
             await SecureStore.setItemAsync("token", data.token)
 
             set ({ token: data.token, user: normalizeUser(data.user), isLoading: false })
@@ -104,9 +120,16 @@ export const useAuthStore = create((set) => ({
         try {
             const token = await SecureStore.getItemAsync("token")
             const userString = await AsyncStorage.getItem("user")
+            const hasAccount = await AsyncStorage.getItem("hasAccount")
+            const hasSeenOnboarding = await AsyncStorage.getItem("hasSeenOnboarding")
             const user = userString ? normalizeUser(JSON.parse(userString)) : null
 
-            set({ token, user})
+            set({ 
+                token, 
+                user, 
+                hasAccount: hasAccount === 'true',
+                hasSeenOnboarding: hasSeenOnboarding === 'true'
+            })
         } catch(error) {
             console.log("Auth check failed: ", error)
         } finally {
