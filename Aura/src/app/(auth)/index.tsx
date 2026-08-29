@@ -3,27 +3,45 @@ import React, { useState } from 'react'
 import { useAuthStore } from '../../../store/authStore';
 import { useRouter } from 'expo-router';
 import { Eye, EyeOff } from 'lucide-react-native';
-import Logo from '../../../assets/Logo.svg';
-import Apple from '../../../assets/Apple.svg';
+import Aura from '@/components/Aura';
+import Apple from '@/components/Apple';
 import Google from '../../../assets/Google.svg'
 import SegmentedControl, { NativeSegmentedControlIOSChangeEvent } from '@react-native-segmented-control/segmented-control'
+import { useTheme } from '@/lib/ThemeContext';
+import { Colors } from '@/constants/Colors';
+import { useLocalSearchParams } from 'expo-router';
+import { extractOnboardingParams, onboardingParamsToRoute } from '@/utils/onboarding';
 
-
+type FocusedFeild = 'loginText' | 'loginPass' | 'signUpEmail' | 'signUpPass' | null
 const Index = () => {
   const [text, setText] = useState('');
   const [password, setPassword] = useState('');
-  const [isEmailFocused, setIsEmailFocused] = useState(false)
-  const [selectedIndex, setSelectIndex] = useState(0)
-  const [isPassFocused, setIsPassFocused] = useState(false)
+  // const [isEmailFocused, setIsEmailFocused] = useState(false)
+  const routeParams = useLocalSearchParams<Record<string, string>>()
+  const isRegisterMode = (Array.isArray(routeParams.mode) ? routeParams.mode[0] : routeParams.mode) === 'register'
+  const [selectedIndex, setSelectIndex] = useState(isRegisterMode ? 1 : 0)
+  // const [isPassFocused, setIsPassFocused] = useState(false)
   const [signUpPass, setSignUpPass] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<String[] | null>(null)
 
+  const [focusedFeild, setFocusedFeild] = useState<FocusedFeild>(null)
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
 
   const { isLoading, logIn } = useAuthStore();
+
+  const { activeTheme } = useTheme()
+  const isDark = activeTheme === 'dark'
+  const primary = isDark ? Colors.dark.primary : Colors.light.primary
+  const textPrimary = isDark ? Colors.dark.textPrimary : Colors.light.textPrimary
+  const border = isDark ? Colors.dark.border : Colors.light.border
+  const borderFocus = isDark ? Colors.dark.borderFocus : Colors.light.borderFocus
+  const textSecondary = isDark ? Colors.dark.textSecondary : Colors.light.textSecondary
+  
+    const buttonSecondary = isDark ? Colors.dark.buttonSecondary : Colors.light.buttonSecondary
 
   const router = useRouter()
 
@@ -90,7 +108,11 @@ const Index = () => {
       setLoading(false)
       router.navigate({
         pathname: '/(auth)/(register)/Username',
-        params: { email: email.trim(), password: signUpPass.trim() }
+        params: {
+          email: email.trim(),
+          password: signUpPass.trim(),
+          ...onboardingParamsToRoute(extractOnboardingParams(routeParams)),
+        }
       })
 
     } catch (error: any) {
@@ -110,30 +132,35 @@ const Index = () => {
 
   }
 
+  const handleTabChange = (index: number) => {
+    Keyboard.dismiss()
+    setFocusedFeild(null)
+    setErrors(null)
+    setSelectIndex(index)
+
+  }
+
   const isLoginFilled = text.length > 0 && password.length > 0
   const isRegisterFilled = email.length > 0 && signUpPass.length > 0;
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}>
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View className='flex-1 mx-6  justify-center'>
+      <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setFocusedFeild(null); }}>
+        <View className='flex-1 mx-6 justify-center'>
 
           {/* Logo */}
-          <View className={`flex-row  gap-3 items-center ${selectedIndex === 0 ? 'mb-12' : 'mb-6'}`}>
-            <Logo height={'26'} width={'26'} />
-            <Text className='text-3xl font-bold'>Aura</Text>
+          <View className={`flex-row  gap-3 items-center mb-6 `}>
+            <Aura />
           </View>
           {
             selectedIndex === 0 ? (
               <View className='mb-6 gap-3'>
-                <Text className='text-4xl font-bold '>Welocome Back!</Text>
-                <Text className='text-base text-gray-600'>Log in to verify your next opportunity safely.</Text>
+                <Text className='text-4xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark'>Welocome Back!</Text>
               </View>
             ) : (
               <View className='mb-6 gap-3'>
-                <Text className='text-4xl font-bold '>Stay safe on your job hunt!</Text>
-                <Text className='text-base text-gray-600'>Sign up now to start verifying job offers today.</Text>
+                <Text className='text-4xl font-bold text-aura-text-primary dark:text-aura-text-primary-dark'>Get Started!</Text>
               </View>
             )
           }
@@ -142,11 +169,12 @@ const Index = () => {
             <SegmentedControl
               values={['Login', 'Sign Up']}
               selectedIndex={selectedIndex}
-              onChange={e => setSelectIndex(e.nativeEvent.selectedSegmentIndex)}
-              backgroundColor='#e0e0e0'
-              tintColor='#eeeeee'
-              appearance='dark'
-              fontStyle={{ color: "black" }}
+              onChange={e => handleTabChange(e.nativeEvent.selectedSegmentIndex)}
+              backgroundColor={isDark ? Colors.dark.surface : Colors.light.surface}
+              tintColor={isDark ? Colors.dark.background : Colors.light.background}
+              appearance={isDark ? 'dark' : 'light'}
+              fontStyle={{ color: isDark ? Colors.dark.textSecondary : Colors.light.textSecondary, fontFamily: 'Aura-Medium' }}
+              activeFontStyle={{ color: isDark ? Colors.dark.textPrimary : Colors.light.textPrimary, fontFamily: 'Aura-Bold' }}
               style={{ height: 40 }}
             />
           </View>
@@ -161,75 +189,73 @@ const Index = () => {
                     </View>
                   )
                 }
-                <View className={`border-2  rounded-xl  px-3 justify-center h-14 ${isEmailFocused ? 'border-black' : 'border-gray-300'}`}>
+                <View className={`border-2  rounded-3xl  px-3 justify-center h-14 `}
+
+                  style={{ borderColor: focusedFeild === 'loginText' ? borderFocus : border }}
+                >
                   <TextInput
                     focusable
-                    className='w-full text-base'
+                    className='w-full text-base text-aura-text-primary dark:text-aura-text-primary-dark'
                     placeholder='Username or Email'
+                    placeholderTextColor={textSecondary}
                     value={text}
                     onChangeText={v => handleChangeInput(v, setText)}
                     keyboardType='email-address'
                     autoCapitalize='none'
-                    onFocus={() => setIsEmailFocused(true)}
-                    onBlur={() => setIsEmailFocused(false)}
+                    onFocus={() => setFocusedFeild('loginText')}
+                    onBlur={() => setFocusedFeild(null)}
                   />
                 </View>
 
-                <View className={`border-2  rounded-xl px-3 justify-center h-14 flex-row items-center ${isPassFocused ? 'border-black' : 'border-gray-300'}`}>
+                <View className={`border-2  rounded-3xl px-3 justify-center h-14 flex-row items-center `}
+                  style={{ borderColor: focusedFeild === 'loginPass' ? borderFocus : border }}
+                >
                   <TextInput
-                    className='flex-1 text-base'
+                    className='flex-1 text-base text-aura-text-primary dark:text-aura-text-primary-dark'
                     placeholder='Password'
+                    placeholderTextColor={textSecondary}
                     value={password}
                     onChangeText={v => handleChangeInput(v, setPassword)}
                     secureTextEntry={!showPass}
                     keyboardType='default'
 
                     autoCapitalize='none'
-                    onFocus={() => setIsPassFocused(true)}
-                    onBlur={() => setIsPassFocused(false)}
+                    onFocus={() => setFocusedFeild('loginPass')}
+                    onBlur={() => setFocusedFeild(null)}
                   />
                   <TouchableOpacity onPress={() => setShowPass(!showPass)}>
                     {
-                      showPass ? <Eye /> : <EyeOff />
+                      showPass ? <Eye color={primary} /> : <EyeOff color={primary} />
                     }
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity disabled={isLoading} className={`items-center justify-center h-14 rounded-xl pr-3 ${isLoading ? 'bg-gray-300' : 'bg-blue-400'} ${isLoginFilled ? 'bg-blue-400' : 'bg-gray-300'}`} onPress={() => handleLogin(text, password)}>
+                <TouchableOpacity
+                  disabled={isLoading}
+                  className={`items-center justify-center h-14 rounded-full pr-3`}
+                  style={{ backgroundColor: isLoginFilled ? primary : isLoading ? primary : buttonSecondary }}
+                  onPress={() => handleLogin(text, password)}>
                   {
                     isLoading ? (
-                      <ActivityIndicator size='small' color='white' />
+                      <ActivityIndicator size='small' color={textPrimary} />
                     ) : (
-                      <Text className='text-lg font-bold text-white'>Log In</Text>
+                      <Text className='text-lg font-bold text-aura-text-primary-dark dark:text-aura-text-primary-dark'>Log In</Text>
                     )
                   }
                 </TouchableOpacity>
                 <View className='flex-row mt-1'>
-                  <Text>Dont have an account? </Text>
+                  <Text className='text-aura-text-primary dark:text-aura-text-primary-dark'>Dont have an account? </Text>
                   <Pressable onPress={() => setSelectIndex(1)}>
-                    <Text className='text-blue-400 font-semibold'>Sign Up</Text>
+                    <Text className='text-aura-primary font-semibold'>Sign Up</Text>
                   </Pressable>
                 </View>
                 <View className='w-full'>
                   <View className='flex-row w-full items-center my-4'>
-                    <View className='flex-1 h-[1px] bg-gray-300'></View>
-                    <Text className='mx-4 text-gray-400 font-normal'>Or login with</Text>
-                    <View className='flex-1  h-[1px] bg-gray-300'></View>
+                    <View className='flex-1 h-[1px] bg-aura-surface dark:bg-aura-surface-elevated-dark'></View>
+                    <Text className='mx-4 text-aura-text-secondary dark:text-aura-text-secondary-dark font-normal'>Or login with</Text>
+                    <View className='flex-1  h-[1px] bg-aura-surface dark:bg-aura-surface-elevated-dark'></View>
                   </View>
-                  <View className='flex-row w-full items-center justify-center gap-3'>
-                    <Pressable className='flex-1 items-center justify-center py-4 bg-gray-300 rounded-xl'>
-                      <Google width={24} height={24} />
-                    </Pressable>
-                    <Pressable className='flex-1 items-center justify-center py-4 bg-gray-300 rounded-xl'>
-                      <Apple width={24} height={24} />
-                    </Pressable>
-                  </View>
-                </View>
-                <View className='flex-row flex-wrap items-center mt-24'>
-                  <Text>By signing up, you agree to the </Text>
-                  <Pressable><Text className='text-blue-400 font-semibold'>Terms of Service</Text></Pressable>
-                  <Text>and </Text>
-                  <Pressable><Text className='text-blue-400 font-semibold'> Data Processing Agreement</Text></Pressable>
+
                 </View>
               </View>
 
@@ -243,76 +269,84 @@ const Index = () => {
                       </View>
                     )
                   }
-                  <View className={`border-2  rounded-xl  px-3 justify-center h-14 ${isEmailFocused ? 'border-black' : 'border-gray-300'}`}>
+                  <View className={`border-2  rounded-3xl  px-3 justify-center h-14`}
+
+                    style={{ borderColor: focusedFeild === 'signUpEmail' ? borderFocus : border }}
+                  >
                     <TextInput
+                    className='text-aura-text-primary dark:text-aura-text-primary-dark'
                       placeholder='Email'
+                      placeholderTextColor={textSecondary}
                       value={email}
                       onChangeText={v => handleChangeInput(v, setEmail)}
                       autoCapitalize='none'
                       keyboardType='email-address'
-                      onFocus={() => setIsEmailFocused(true)}
-                      onBlur={() => setIsEmailFocused(false)}
+                      onFocus={() => setFocusedFeild('signUpEmail')}
+                      onBlur={() => setFocusedFeild(null)}
                     />
 
                   </View>
-                  <View className={`border-2 flex-row  rounded-xl  px-3 items-center justify-center h-14 ${isPassFocused ? 'border-black' : 'border-gray-300'}`}>
+                  <View className={`border-2 flex-row  rounded-3xl  px-3 items-center justify-center h-14 `}
+
+                    style={{ borderColor: focusedFeild === 'signUpPass' ? borderFocus : border }}
+                  >
                     <TextInput
-                      className='flex-1 text-base'
+                      className='flex-1 text-base text-aura-text-primary dark:text-aura-text-primary-dark'
                       placeholder='Password'
+                      placeholderTextColor={textSecondary}
                       value={signUpPass}
                       onChangeText={v => handleChangeInput(v, setSignUpPass)}
                       secureTextEntry={!showPass}
                       keyboardType='default'
                       autoCapitalize='none'
-                      onFocus={() => setIsPassFocused(true)}
-                      onBlur={() => setIsPassFocused(false)}
+                      onFocus={() => setFocusedFeild('signUpPass')}
+                      onBlur={() => setFocusedFeild(null)}
                     />
                     <TouchableOpacity onPress={() => setShowPass(!showPass)}>
                       {
-                        showPass ? <Eye color={'#4b5563'} /> : <EyeOff color={'#4b5563'} />
+                        showPass ? <Eye color={primary} /> : <EyeOff color={primary} />
                       }
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity disabled={isLoading} className={`items-center justify-center h-14 rounded-xl pr-3 ${isLoading ? 'bg-gray-300' : 'bg-blue-400'} ${loading ? 'bg-gray-300' : 'bg-blue-400'} ${isRegisterFilled ? 'bg-blue-400' : 'bg-gray-300'}`} onPress={() => handleRegister(username, email, password)}>
+                  <TouchableOpacity
+                    disabled={isLoading}
+                    className={`items-center justify-center h-14 rounded-full pr-3`}
+                    onPress={() => handleRegister(username, email, password)}
+                    style={{ backgroundColor: isRegisterFilled ? primary : isLoading ? primary : buttonSecondary }}
+                  >
                     {
                       isLoading || loading ? (
-                        <ActivityIndicator size='small' color='white' />
+                        <ActivityIndicator size='small' color={textPrimary} />
                       ) : (
                         <Text className='text-lg font-bold text-white'>Sign Up</Text>
                       )
                     }
                   </TouchableOpacity>
                   <View className='flex-row mt-1'>
-                    <Text>Already have an account? </Text>
+                    <Text className='text-aura-text-primary dark:text-aura-text-primary-dark'>Already have an account? </Text>
                     <Pressable onPress={() => setSelectIndex(0)}>
-                      <Text className='text-blue-400 font-semibold'>Login</Text>
+                      <Text className='text-aura-primary font-semibold '>Login</Text>
                     </Pressable>
                   </View>
                   <View className='w-full'>
                     <View className='flex-row w-full items-center my-4'>
-                      <View className='flex-1 h-[1px] bg-gray-300'></View>
-                      <Text className='mx-4 text-gray-400 font-normal'>Or</Text>
-                      <View className='flex-1  h-[1px] bg-gray-300'></View>
-                    </View>
-                    <View className='flex-row w-full items-center justify-center gap-3'>
-                      <Pressable className='flex-1 items-center justify-center py-4 bg-gray-300 rounded-xl'>
-                        <Google width={24} height={24} />
-                      </Pressable>
-                      <Pressable className='flex-1 items-center justify-center py-4 bg-gray-300 rounded-xl'>
-                        <Apple width={24} height={24} />
-                      </Pressable>
+                      <View className='flex-1 h-[1px] bg-aura-surface dark:bg-aura-surface-elevated-dark'></View>
+                      <Text className='mx-4 text-aura-text-secondary dark:text-aura-text-secondary-dark '>Or</Text>
+                      <View className='flex-1  h-[1px] bg-aura-surface dark:bg-aura-surface-elevated-dark'></View>
                     </View>
                   </View>
-                </View>
-                <View className='flex-row flex-wrap items-center mt-24'>
-                  <Text>By signing up, you agree to the </Text>
-                  <Pressable><Text className='text-blue-400 font-semibold'>Terms of Service</Text></Pressable>
-                  <Text>and </Text>
-                  <Pressable><Text className='text-blue-400 font-semibold'> Data Processing Agreement</Text></Pressable>
                 </View>
               </View>
             )
           }
+          <View className='flex-row w-full items-center justify-center gap-3'>
+            <Pressable className='flex-1 items-center justify-center py-4 bg-aura-surface dark:bg-aura-surface-dark rounded-xl'>
+              <Google width={24} height={24} />
+            </Pressable>
+            <Pressable className='flex-1 items-center justify-center py-4 bg-aura-surface dark:bg-aura-surface-dark rounded-xl'>
+              <Apple />
+            </Pressable>
+          </View>
         </View>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView >
