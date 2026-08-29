@@ -12,7 +12,7 @@ const generateToken = (userId) => {
 
 const postRegister = async (req, res, next) => {
     try {
-        const { username, email, password, userOtp, fullName } = req.body;
+        const { username, email, password, userOtp, fullName, experience, riskAppetite, goal, capital, profileIds } = req.body;
 
         if (!username || !email || !password || !userOtp || !fullName) {
             return res.status(400).json({ message: "All fields are required. " });
@@ -68,6 +68,17 @@ const postRegister = async (req, res, next) => {
         //get random avatars
         const profileImage = `https://api.dicebear.com/10.x/waves/svg?seed=${encodeURIComponent(username)}`;
 
+        const initialCapital = Number(capital) || 10000000;
+
+        // Recommended profile ids from onboarding (informational only — no follows created).
+        let recommendedIds = []
+        if (typeof profileIds === 'string') {
+            try { recommendedIds = JSON.parse(profileIds) } catch { recommendedIds = profileIds.split(',').filter(Boolean) }
+        } else if (Array.isArray(profileIds)) {
+            recommendedIds = profileIds
+        }
+        recommendedIds = recommendedIds.map(id => String(id)).filter(Boolean)
+
         const user = new User({
             username,
             email,
@@ -76,7 +87,14 @@ const postRegister = async (req, res, next) => {
             profileImage,
             isVerified,
             verifiedAt: isVerified ? new Date() : null,
-            hasOnboarded: true
+            hasOnboarded: true,
+            onBoardedAt: new Date(),
+            ...(experience && { experience }),
+            ...(riskAppetite && { riskAppetite }),
+            ...(goal && { goal }),
+            recommendedProfiles: recommendedIds,
+            initialCapital,
+            availableCapital: initialCapital
         });
 
         await user.save();
@@ -92,6 +110,11 @@ const postRegister = async (req, res, next) => {
                 email: user.email,
                 profileImage: user.profileImage,
                 hasOnboarded: user.hasOnboarded,
+                onBoardedAt: user.onBoardedAt,
+                experience: user.experience,
+                riskAppetite: user.riskAppetite,
+                goal: user.goal,
+                recommendedProfiles: user.recommendedProfiles,
                 initialCapital: user.initialCapital,
                 availableCapital: user.availableCapital,
                 systemUser: user.systemUser,

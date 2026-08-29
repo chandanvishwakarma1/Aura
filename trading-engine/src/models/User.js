@@ -46,6 +46,10 @@ const userSchema = new mongoose.Schema({
     onBoardedAt: {
         type: Date,
     },
+    recommendedProfiles: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Profile',
+    }],
     experience: {
         type: String,
         enum: ['new', 'some', 'experienced', 'professional'],
