@@ -3,9 +3,9 @@ import '../../global.css'
 import { ThemeProvider as AppThemeProvider, useTheme } from "@/lib/ThemeContext";
 import { useFonts } from "expo-font";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
-import { AppState, AppStateStatus, Platform, StatusBar, View } from "react-native";
+import { AppState, AppStateStatus, Platform, StatusBar, Text, View } from "react-native";
 import { useAuthStore } from '../../store/authStore'
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { focusManager, noop, onlineManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import NetInfo from "@react-native-community/netinfo";
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
@@ -14,6 +14,9 @@ import { configureReanimatedLogger, ReanimatedLogLevel } from "react-native-rean
 import { queryClient } from '@/utils/queryClient'
 import * as Notifications from 'expo-notifications'
 import registerForPushNotificationsAsync from "@/utils/notifications";
+import { Image } from "expo-image";
+import Aura from '@/assets/images/adaptive-icon-light.png'
+import * as Updates from 'expo-updates'
 
 
 
@@ -49,11 +52,12 @@ const AppStateTracker = () => {
 function NavigationContent() {
   const { activeTheme } = useTheme()
   const isDark = activeTheme === 'dark'
-  const currentTheme = isDark ? AuraDarkTheme : AuraLightTheme
+  const currentTheme = useMemo(()=>(isDark ? AuraDarkTheme : AuraLightTheme), [isDark])
 
   return (
-    <ThemeProvider value={isDark ? AuraDarkTheme : AuraLightTheme}>
+    <ThemeProvider value={currentTheme}>
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: currentTheme.colors.background } }}>
+        <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(profile)" />
@@ -91,18 +95,38 @@ configureReanimatedLogger({
   strict: true,
 });
 
-// Optional: Filter the warning completely out of your Expo mobile screen developer logbox
 LogBox.ignoreLogs([
   '[Reanimated] Writing to `value` during component render',
 ]);
+
+function CustomSplashScreen(){
+  const insets=useSafeAreaInsets()
+
+  return (
+      <View style={{ backgroundColor: '#0052FF' }} className="flex-1 justify-center items-center">
+        <Image
+          source={Aura}
+          style={{ width: 76, height: 76 }}
+          contentFit="contain"
+        />
+        <View style={{ bottom: insets.bottom + 40 }}
+          className="absolute left-0 right-0 items-center justify-center"
+        >
+          <Text style={{ fontFamily: 'Aura-Bold' }}
+            className="text-white text-xl tracking-tighter lowercase"
+          >Aura</Text>
+        </View>
+      </View>
+    )
+}
 export default function RootLayout() {
   const router = useRouter()
   const segments = useSegments();
-  const insets = useSafeAreaInsets()
   const [expoPushToken, setExpoPushToken] = useState('')
   const [channels, setChannels] = useState<Notifications.NotificationChannel[]>([])
   const [notification, setNotification] = useState<Notifications.Notification | undefined>(undefined)
   const [isAppReady, setIsAppReady] = useState(false)
+  const [showCustomSplash, setShowCustomSplash] = useState(true)
   const [fontsLoaded, fontsErr] = useFonts({
     'Aura-Bold': require('@/assets/fonts/Coinbase_Sans-Bold.ttf'),
     'Aura-Bold-Italic': require('@/assets/fonts/Coinbase_Sans-Bold_Italic.ttf'),
@@ -116,54 +140,68 @@ export default function RootLayout() {
     'Aura-Regular-Italic': require('@/assets/fonts/Coinbase_Sans-Regular_Italic.ttf'),
   })
 
-  const { checkAuth, token, user, isCheckingAuth, setUser } = useAuthStore();
-  useEffect(() => {
-    let isMounted = true
+  const { checkAuth, token, user, isCheckingAuth, setUser, hasAccount, hasSeenOnboarding } = useAuthStore();
 
-    const prepareApp = async () => {
+  //Ota
+  useEffect(()=>{
+    async function checkForUpdates() {
+      if (__DEV__) return;
+
       try {
-        await checkAuth()
-
-        const currentToken = useAuthStore.getState().token
-        const currentUser = useAuthStore.getState().user
-        // console.log("currentUser: ", JSON.stringify(currentUser, null,2))
-        const userId = currentUser?._id
-
-        if (currentToken && currentUser?._id) {
-          const res = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${currentUser._id}`, {
-            headers: { 'Authorization': 'Bearer ' + currentToken }
-          })
-          if (res.ok) {
-            const resData = await res.json()
-            if (resData.user && isMounted) {
-              setUser({
-                ...resData.user,
-                _id: resData.user._id
-              })
-              queryClient.setQueryData(['userProfile', userId], resData.user)
-            }
-          }
+        const update = await Updates.checkForUpdateAsync()
+        if(update.isAvailable){
+          await Updates.fetchUpdateAsync()
+          await Updates.reloadAsync()
         }
       } catch (error) {
-        console.warn('App initialization error: ', error)
-      } finally {
-        if (isMounted) {
-          setIsAppReady(true)
-        }
+        console.log('Error fetching update: ', error)
       }
     }
-    prepareApp()
 
-    return () => {
-      isMounted = false
-    }
+    checkForUpdates()
   }, [])
 
+  //initial auth & background profile fetch (non-blocking)
   useEffect(() => {
-    if (!isAppReady || isCheckingAuth || !user || !token) return
-    const isSignedIn = user && token
-    if (!isSignedIn) return;
-    if (user?.notificationEnabled !== true) return
+    let isMounted = true
+    checkAuth().finally(() => {
+      if (isMounted) setIsAppReady(true)
+    })
+    return () => { isMounted = false }
+  }, [checkAuth])
+
+  // Refresh the profile from the server once the session is ready, without
+  // blocking app boot. setUser persists the freshest user to storage.
+  const userId = user?._id
+  useEffect(() => {
+    if (!token || !userId) return
+
+    let isMounted = true
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 15000)
+
+    fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/user/${userId}`, {
+      headers: { 'Authorization': 'Bearer ' + token },
+      signal: controller.signal,
+    })
+      .then(async (res) => (res.ok ? res.json() : null))
+      .then((resData) => {
+        clearTimeout(timeoutId)
+        if (resData?.user && isMounted) {
+          setUser({ ...resData.user, _id: resData.user._id })
+          queryClient.setQueryData(['userProfile', userId], resData.user)
+        }
+      })
+      .catch((error) => {
+        clearTimeout(timeoutId)
+        if (error?.name !== 'AbortError') console.warn('Profile refresh error: ', error)
+      })
+
+    return () => { isMounted = false; controller.abort() }
+  }, [token, userId, setUser])
+
+  useEffect(() => {
+    if (!isAppReady || isCheckingAuth || user?.notificationEnabled !== true || !token) return
 
     let isMounted = true
 
@@ -196,42 +234,49 @@ export default function RootLayout() {
       notificationListner.remove()
       responseListner.remove()
     }
-  }, [user?.notificationEnabled, user, token, isCheckingAuth, isAppReady])
+  }, [token, user?.notificationEnabled, isCheckingAuth, isAppReady, router])
 
   useEffect(() => {
-    if (!isAppReady || isCheckingAuth || !fontsLoaded) return
+    if (!isAppReady || isCheckingAuth || (!fontsLoaded && !fontsErr)) return
 
-    if (fontsErr) console.log('Error loading in fonts', fontsErr)
+    if (fontsErr) console.warn('Error loading fonts: ', fontsErr)
 
     const inAuthScreen = segments[0] === '(auth)'
-    const isSignedIn = user && token
-    const needsOnboarding = isSignedIn && user?.hasOnboarded !== true
+    const inOnboardingScreen = segments[0] === '(onboarding)'
+    const isSignedIn = !!user && !!token
 
-    if (inAuthScreen && !isSignedIn && needsOnboarding) router.replace('/(onboarding)')
-    else if (isSignedIn && needsOnboarding && segments[0] !== '(onboarding)') router.replace('/(onboarding)')
-    else if (!inAuthScreen && !isSignedIn) router.replace('/(auth)')
-    // else if(isSignedIn && !needsOnboarding && segments[0])
-    else if (inAuthScreen && isSignedIn && !needsOnboarding || segments[0] === '(onboarding)') router.replace('/(tabs)')
+    if (isSignedIn) {
+      // Signed-in -> main tabs, never auth/onboarding
+      if (inAuthScreen || inOnboardingScreen) router.replace('/(tabs)')
+    } else if (hasAccount || hasSeenOnboarding) {
+      // Returning/logged-out user, or a new user who finished the onboarding intro
+      // -> login/register
+      if (!inAuthScreen) router.replace('/(auth)')
+    } else {
+      // Brand-new user who hasn't seen onboarding yet -> onboarding intro, then register
+      if (!inOnboardingScreen) router.replace('/(onboarding)')
+    }
 
-    SplashScreen.hideAsync().catch(console.warn)
-  }, [user, token, router, segments, isCheckingAuth, fontsLoaded, fontsErr, isAppReady])
-
-  if (!isAppReady || !fontsLoaded) {
-    return <View />
-  }
-  if (isCheckingAuth || !fontsLoaded) {
-    return <View />
-  }
-
-
+    SplashScreen.hideAsync().then(() => {
+      setTimeout(() => {
+        setShowCustomSplash(false)
+      }, 600)
+    }).catch(console.warn)
+  }, [user, token, router, segments, isCheckingAuth, fontsLoaded, fontsErr, isAppReady, hasAccount, hasSeenOnboarding])
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <AppStateTracker />
-        <SafeAreaProvider style={{ paddingTop: insets.top }}>
+        <SafeAreaProvider>
           <AppThemeProvider>
-            <NavigationContent />
+            {
+              showCustomSplash || (!fontsLoaded && !fontsErr) || !isAppReady || isCheckingAuth ? (
+                <CustomSplashScreen />
+              ) : (
+                <NavigationContent />
+              )
+            }
           </AppThemeProvider>
         </SafeAreaProvider>
       </QueryClientProvider>
