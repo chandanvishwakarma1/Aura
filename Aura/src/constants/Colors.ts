@@ -48,30 +48,34 @@ export type ThemeTokens = {
   backgroundAlt: string;
   surface: string;
   surfaceElevated: string;
-  
+
   // Text & Typography
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
   textInverse: string;
-  
+
   // Brand & Action CTAs
   primary: string;
   primaryHover: string;
   primaryActive: string;
   primaryDisabled: string;
   onPrimary: string;
-  
+
+  //Button
+  buttonPrimary: string,
+  buttonSecondary: string,
+
   // Lines, Hairlines & Separators
   border: string;
   borderSoft: string;
   borderFocus: string;
-  
+
   // Financial Trading & Status Semantics
   positive: string;
   negative: string;
   warning: string;
-  
+
   // Effects & Overlays
   shadow: string;
   overlay: string;
@@ -99,6 +103,10 @@ export const Colors: { light: ThemeTokens; dark: ThemeTokens } = {
     primaryActive: Palette.blue[80],      // #003EC1
     primaryDisabled: Palette.blue[10],    // #B0CAFF
     onPrimary: Palette.gray[0],           // #FFFFFF
+
+    //Button
+    buttonPrimary: Palette.blue[60],
+    buttonSecondary: Palette.gray[10],
 
     // Borders & Hairlines
     border: Palette.gray[15],             // #DEE1E6
@@ -135,6 +143,10 @@ export const Colors: { light: ThemeTokens; dark: ThemeTokens } = {
     primaryActive: Palette.blue[20],      // #73A2FF
     primaryDisabled: '#1C2B4D',
     onPrimary: Palette.gray[0],           // #FFFFFF
+
+    //Button
+    buttonPrimary: Palette.blue[60],
+    buttonSecondary: Palette.gray[60],
 
     // Borders & Hairlines
     border: Palette.gray[80],             // #32353D
