@@ -177,7 +177,7 @@ const Trade = () => {
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={{ flex: 1 }}
-            className='mx-6 mt-4'
+            className='mx-6 mt-9'
         >
             <View className='realtive mb-3 flex-row items-center justify-between'>
                 <Pressable onPress={() => router.back()} className='z-10 ' style={({ pressed }) => [

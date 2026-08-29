@@ -231,7 +231,8 @@ const Discover = () => {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={{ flex: 1 }}
+      style={{ flex: 1  }}
+      className='mt-6'
     >
       <View className='flex-1 mx-6'>
         <View>

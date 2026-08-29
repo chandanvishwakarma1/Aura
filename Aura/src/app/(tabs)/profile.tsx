@@ -149,7 +149,7 @@ const Profile = () => {
   }, [activeTheme])
   return (
     <ScrollView
-      className='flex-1 mx-6'
+      className='flex-1 mx-6 mt-6'
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl

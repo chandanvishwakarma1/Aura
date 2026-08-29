@@ -21,7 +21,7 @@ const fetchTrade = async (token: string, id: string) => {
     return resData
 }
 const TradeSkeleton = ({ router, width, isSkipped }: { router: any, width: number, isSkipped: boolean }) => (
-    <View className='flex-1 mx-6 mt-4'>
+    <View className='flex-1 mx-6 mt-9 '>
         <View className='flex-row items-center '>
             <Pressable
                 onPress={() => router.back()}
@@ -143,7 +143,7 @@ const TradeDetail = () => {
     // console.log(absPnl)
     // console.log(formatFollowers(followCount))
     return (
-        <View className='flex-1 mx-6 mt-4'>
+        <View className='flex-1 mx-6 mt-9'>
             <View className='flex-row items-center '>
                 <Pressable
                     onPress={() => router.back()}

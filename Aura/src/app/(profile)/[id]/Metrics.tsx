@@ -124,9 +124,9 @@ const Metrics = () => {
             }
             contentContainerStyle={{ paddingBottom: 46 }}
             showsVerticalScrollIndicator={false}
-            className='flex-1 mx-6'
+            className='flex-1 mx-6 mt-6'
         >
-            <View className='flex-row gap-3 items-center mt-4 '>
+            <View className='flex-row gap-3 items-center  '>
                 <Pressable
                     onPress={() => router.back()}
                     hitSlop={{ top: 20, right: 20, left: 20, bottom: 20 }}
@@ -145,7 +145,7 @@ const Metrics = () => {
             </View>
 
             <View>
-                <View className='flex-row gap-3 items-center mt-9 flex-wrap'>
+                <View className='flex-row gap-3 items-center mt-6 flex-wrap'>
                     <View className='w-20 h-20 rounded-full overflow-hidden shrink-0'>
                         <Image
                             source={profileImage ? { uri: profileImage } : undefined}

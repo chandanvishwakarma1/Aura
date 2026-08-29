@@ -122,7 +122,7 @@ const Index = () => {
   return (
     <ScrollView
       showsVerticalScrollIndicator={false}
-      className='flex-1 mx-6'
+      className='flex-1 mx-6 mt-6'
       refreshControl={
         <RefreshControl
           refreshing={isAnyQueryRefetching}

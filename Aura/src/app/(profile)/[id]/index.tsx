@@ -131,7 +131,7 @@ const ProfileDetail = () => {
   // console.log(latestReturns)
 
   return (
-    <View className='flex-1 '>
+    <View className='flex-1 mt-6'>
       <ScrollView
         className='flex-1' showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -144,7 +144,7 @@ const ProfileDetail = () => {
           />
         }
       >
-        <View className='flex-row gap-3 items-center mt-4 mx-6'>
+        <View className='flex-row gap-3 items-center  mx-6'>
           <Pressable
             onPress={() => router.back()}
             hitSlop={{ top: 20, right: 20, left: 20, bottom: 20 }}
@@ -163,7 +163,7 @@ const ProfileDetail = () => {
         </View>
 
         <View className='gap-3'>
-          <View className='flex-row gap-3 items-center mt-9 mx-6'>
+          <View className='flex-row gap-3 items-center mt-6 mx-6'>
             <View className='w-20 h-20 rounded-full overflow-hidden shrink-0'>
               <Image
                 source={profileImage ? { uri: profileImage } : undefined}

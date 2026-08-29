@@ -32,7 +32,7 @@ const fetchTrade = async (token: string, id: string) => {
     return resData
 }
 const PositionSkeleton = ({ router, width }: { router: any, width: number }) => (
-    <View className='flex-1 mx-6 mt-4'>
+    <View className='flex-1 mx-6 mt-9'>
         <View className='flex-row items-center '>
             <Pressable
                 onPress={() => router.back()}
@@ -136,7 +136,7 @@ const PositionDetail = () => {
     // console.log(JSON.stringify(position, null, 2))
     // console.log(formatFollowers(followCount))
     return (
-        <View className='flex-1 mx-6 mt-4'>
+        <View className='flex-1 mx-6 mt-9'>
 
             <View className='flex-row items-center '>
                 <Pressable
