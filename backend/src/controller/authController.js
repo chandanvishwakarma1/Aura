@@ -5,6 +5,9 @@ import otpTemplate from '../lib/email/templates/otp.js'
 import OtpModel from '../models/OtpModel.js';
 import User from '../models/User.js';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library'
+
+const googleClient = new OAuth2Client("722379224330-4srvaghc8shks1gllnsmos08p2kin7c4.apps.googleusercontent.com")
 
 const generateToken = (userId) => {
     return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: "15d" }); //expiress in 15 days
@@ -234,12 +237,83 @@ const postLogin = async (req, res, next) => {
 
 }
 
+const postGoogle = async(req,res,next) => {
+    try {
+        const {idToken} = req.body;
+
+        if(!idToken){
+            return res.status(400).json({ success:false, message: "Missing Google ID Token"})
+        }
+
+        const ticket = await googleClient.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID || "722379224330-4srvaghc8shks1gllnsmos08p2kin7c4.apps.googleusercontent.com"
+        })
+
+        const payload = ticket.getPayload()
+        if(!payload) {
+            return res.status(400).json({ success: false, message: "Invalid token payload"})
+        }
+
+        const {email,name,picture, sub: googleId} = payload
+
+        let user = await User.findOne({ email })
+
+        if(!user) {
+            return res.json({
+                isNewUser: true,
+                googleData: {
+                    email,
+                    fullName: name || '',
+                    profileImage: picture || '',
+                    googleId
+                }
+            })
+        }
+
+        if(!user.googleId){
+            user.googleId = googleId
+            await user.save()
+        }
+
+        const token = generateToken(user._id)
+
+        return res.status(200).json({
+            success: true,
+            isNewUser: false,
+            token,
+            user: {
+                _id:user._id,
+                username: user.username,
+                fullName: user.fullName,
+                email: user.email,
+                googleId: googleId,
+                profileImage: user.profileImage,
+                hasOnboarded: user.hasOnboarded,
+                onBoardedAt: user.onBoardedAt,
+                experience: user.experience,
+                riskAppetite: user.riskAppetite,
+                goal: user.goal,
+                recommendedProfiles: user.recommendedProfiles,
+                initialCapital: user.initialCapital,
+                availableCapital: user.availableCapital,
+                systemUser: user.systemUser,
+                createdAt: user.createdAt
+            }
+        })
+    } catch (error) {
+        console.log("Google Auth Backend Error: ", error)
+        return res.status(500).json({ success: false, message: "Authentication failed internally" || error.message})
+    }
+}
+
 
 const authController = {
     postRegister,
     postCheckUser,
     postLogin,
-    postRequestOtp
+    postRequestOtp,
+    postGoogle
 };
 
 export default authController;
