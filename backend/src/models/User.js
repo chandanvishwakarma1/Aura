@@ -58,7 +58,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         enum: ['conservative', 'balanced', 'growth', 'aggressive']
     },
-    goal: { type: String, enum:['learn_trading', 'improve_trading', 'just_exploring'], default: [] },
+    goal: { type: String, enum:['learn_trading', 'improve_trading', 'just_exploring'], default: 'just_exploring' },
     initialCapital: {
         type: Number,
         default: 10000000
