@@ -5,7 +5,7 @@ const router = express.Router()
 
 router.get('/', profileController.getProfiles)
 router.get('/:id', protectedRoute, profileController.getProfileById)
-router.get('/:id/returns', protectedRoute, profileController.getProfileReturns)
+router.get('/:id/returns', profileController.getProfileReturns)
 router.post('/follow/:id', protectedRoute, profileController.postFollow)
 router.get('/follow', protectedRoute, profileController.getFollows)
 
